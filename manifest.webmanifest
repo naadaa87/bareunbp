@@ -1,0 +1,24 @@
+{
+ "name": "바른혈압",
+ "short_name": "바른혈압",
+ "description": "혈압을 바르게 재고, 기록하고, 진료에 가져가는 고혈압 관리 플랫폼",
+ "start_url": "/check7/",
+ "scope": "/",
+ "display": "standalone",
+ "background_color": "#ffffff",
+ "theme_color": "#0e2a47",
+ "lang": "ko",
+ "icons": [
+  {
+   "src": "/assets/img/apple-touch-icon.png",
+   "sizes": "180x180",
+   "type": "image/png"
+  },
+  {
+   "src": "/assets/img/icon-512.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "any"
+  }
+ ]
+}

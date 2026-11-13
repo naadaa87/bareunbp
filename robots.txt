@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /search/
+
+User-agent: Yeti
+Allow: /
+Disallow: /api/
+
+Sitemap: https://bareunbp.com/sitemap.xml
