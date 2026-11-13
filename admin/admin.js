@@ -1,0 +1,754 @@
+/* 바른혈압 관리자 콘솔 */
+(function () {
+  "use strict";
+
+  // ============================================================ 상수
+  var QNA_ST = { pending: "새 질문", draft: "작성 중", review: "감수 요청", published: "게시됨", hidden: "숨김" };
+  var QNA_TAG = { pending: "t-red", draft: "t-amber", review: "t-blue", published: "t-green", hidden: "" };
+  var QNA_CATS = ["검진에서 처음", "측정", "생활", "음식", "약", "젊은 혈압", "가족", "기타", "경험담"];
+  var LEAD_ST = { "new": "신규", contacted: "연락함", progress: "진행 중", done: "완료", hold: "보류" };
+  var LEAD_TAG = { "new": "t-red", contacted: "t-blue", progress: "t-amber", done: "t-green", hold: "" };
+  var LEAD_TYPE = { clinic: "의원·병원", checkup: "검진센터", corporate: "기업·단체", "public": "보건소·공공", device: "의료기기·헬스케어", family: "가족 기능 신청", other: "기타" };
+  var REP_ST = { pending: "접수", reviewing: "검토 중", published: "발행", rejected: "반려", duplicate: "중복" };
+  var REP_TAG = { pending: "t-red", reviewing: "t-amber", published: "t-green", rejected: "", duplicate: "" };
+  var TYPE_LABEL = { info: "건강정보", food: "음식·식단", recipe: "레시피", factcheck: "팩트체크", guide: "안내·도구", policy: "정책" };
+  var EVENT_LABEL = {
+    record_saved: "혈압 기록 저장", quick_entry: "홈 빠른 기록", csv_export: "기록 CSV 내보내기", report_view: "리포트 열람(기록 있음)",
+    report_print: "리포트 인쇄", timer_start: "측정 타이머 시작", timer_done: "측정 타이머 완료", sodium_use: "나트륨 계산기 사용",
+    meds_check: "복약 체크", reminder_ics: "측정 알림 만들기", backup_export: "기록 백업 저장", backup_import: "기록 불러오기",
+    challenge_done: "챌린지 완료 체크", form_qna: "질문·경험담 제출", form_lead: "문의·신청 제출", form_newsletter: "레터 구독",
+    form_report: "팩트체크 요청", search: "사이트 검색", logsheet_print: "기록지 인쇄", recipe_print: "레시피 인쇄", mealplan_print: "식단표 인쇄"
+  };
+  var ACTION_LABEL = {
+    login: "로그인", login_failed: "로그인 실패", qna_publish: "질문 게시", qna_update: "질문 저장", qna_delete: "질문 삭제",
+    qna_review_ok: "답변 검토 완료", qna_review_back: "답변 수정 요청", lead_update: "문의 처리", lead_delete: "문의 파기",
+    newsletter_unsubscribe: "구독 해지 처리", newsletter_restore: "구독 복구", newsletter_delete: "구독자 파기", newsletter_export: "구독자 내보내기",
+    report_update: "팩트체크 요청 처리", report_delete: "팩트체크 요청 삭제", review_approve: "콘텐츠 감수 승인", review_revise: "콘텐츠 수정 필요",
+    review_delete: "감수 기록 삭제", correction_add: "정정 이력 추가", correction_edit: "정정 이력 수정", settings_notice: "공지 변경",
+    purge: "보유기간 파기", export_all: "전체 백업"
+  };
+  // 편집 정책 표현 가이드 — 서버와 같은 목록
+  var BANNED = ["완치", "치료합니다", "치료해", "치료 효과", "치료됩니다", "약을 끊", "약 끊", "끊으세요", "끊어도 됩니다", "줄이세요", "복용을 중단", "중단하세요", "드시면 됩니다", "처방합니다", "진단합니다", "진단됩니다", "발병위험", "사망위험", "위험도", "보장합니다", "100%", "특효", "특효약", "확실히 낮", "무조건"];
+  var BANNED_HINT = {
+    "완치": "관리에 도움이 될 수 있습니다", "치료": "관리에 도움이 될 수 있습니다", "끊": "약의 조정은 처방한 의료진과 상의하세요", "줄이세요": "약의 조정은 처방한 의료진과 상의하세요",
+    "중단": "약의 조정은 처방한 의료진과 상의하세요", "드시면": "의료진·약사와 상의하세요", "처방": "의료진이 판단합니다", "진단": "진료 때 의료진과 확인하세요",
+    "위험": "개인 위험도·확률 수치는 쓰지 않습니다", "보장": "과장 표현 삭제", "100%": "과장 표현 삭제", "특효": "과장 표현 삭제", "확실히": "과장 표현 삭제", "무조건": "과장 표현 삭제"
+  };
+  var TEMPLATES = [
+    { n: "정보 안내 + 관련 글", t: "(질문의 핵심에 한두 문장으로 답합니다. 지침·공공자료 기준으로 쓰고, 개인 판단은 하지 않습니다.)\n\n관련 글: [제목](/info/)" },
+    { n: "개인 판단 영역 (약·진단·수치 해석)", t: "이 질문은 커뮤니티에서 답할 수 없는 영역입니다. 약의 시작·조정·중단과 수치의 해석은 기록과 검사 결과를 본 의료진이 판단합니다.\n\n진료 때 이렇게 물어보세요.\n- 제 가정혈압 평균은 목표 기준으로 어느 범위인가요?\n- 지금 상황에서 약이나 생활습관을 바꿀 필요가 있나요?\n\n진료 전에 [7일 혈압 기록](/check7/)을 [진료 준비 리포트](/report/)로 정리해 가져가면 상담이 수월합니다." },
+    { n: "측정 방법 확인", t: "숫자를 해석하기 전에 측정 조건부터 맞춰 보세요. 등받이 의자에 앉아 5분 안정한 뒤, 위팔 심장 높이에 커프를 감고 1~2분 간격으로 2번 잽니다. 아침(기상 후 1시간 이내, 약·식사 전)과 저녁(잠들기 전)으로 5~7일 기록하면 평균을 볼 수 있습니다.\n\n관련: [바르게 재기](/measure/) · [측정 타이머](/tools/timer/)" },
+    { n: "응급 신호 안내", t: "말씀하신 상황에 갑작스러운 심한 두통, 가슴 통증, 한쪽 팔다리 힘 빠짐, 말이 어눌해짐, 시야 이상이 함께 있다면 이 답변을 기다리지 말고 즉시 119에 연락하세요. 안정 후에도 혈압이 180/120 이상으로 반복되면 당일 진료를 받으세요.\n\n관련: [혈압 180/120 이상일 때](/info/hypertensive-crisis)" },
+    { n: "음식·나트륨", t: "(질문에 대한 답)\n\n메뉴별 나트륨은 [외식 나트륨표](/food/sodium-table)에서 비교할 수 있고, 오늘 먹은 양은 [나트륨 계산기](/tools/sodium/)로 대략 확인할 수 있습니다. 콩팥 질환이 있거나 식이 제한을 받고 있다면 의료진·영양사의 지시를 우선하세요." },
+    { n: "경험담 게시 안내", t: "경험을 나눠 주셔서 감사합니다. 같은 고민을 가진 분들께 도움이 될 것 같습니다. 다만 약이나 수치에 관한 판단은 사람마다 다르니, 따라 하기 전에 의료진과 상의하세요." }
+  ];
+
+  // ============================================================ 상태·유틸
+  var S = { me: null, content: null, contentMap: {}, badge: {}, route: "", params: {} };
+  var app = document.getElementById("app");
+
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function renderAnswer(s) {
+    return esc(s).replace(/\[([^\]\n]{1,80})\]\((\/[A-Za-z0-9\-_\/.#]*)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>').replace(/\n/g, "<br>");
+  }
+  function kst(iso) {
+    if (!iso) return "";
+    var d = new Date(new Date(iso).getTime() + 9 * 3600e3);
+    var p = function (n) { return ("0" + n).slice(-2); };
+    return d.getUTCFullYear() + "." + p(d.getUTCMonth() + 1) + "." + p(d.getUTCDate()) + " " + p(d.getUTCHours()) + ":" + p(d.getUTCMinutes());
+  }
+  function kstDate(iso) { return kst(iso).slice(0, 10); }
+  function kstDay(off) { return new Date(Date.now() + 9 * 3600e3 - (off || 0) * 86400e3).toISOString().slice(0, 10); }
+  function ago(iso) {
+    if (!iso) return "";
+    var m = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+    if (m < 1) return "방금"; if (m < 60) return m + "분 전"; var h = Math.round(m / 60); if (h < 24) return h + "시간 전"; var d = Math.round(h / 24); return d < 31 ? d + "일 전" : kstDate(iso);
+  }
+  function toast(msg, err) {
+    var t = document.getElementById("toast"); t.textContent = msg; t.className = "toast show" + (err ? " err" : "");
+    clearTimeout(t._t); t._t = setTimeout(function () { t.className = "toast"; }, 2800);
+  }
+  function api(path, opt) {
+    opt = opt || {};
+    var init = { method: opt.method || "GET", credentials: "same-origin", headers: { "X-BP-Admin": "1" } };
+    if (opt.body !== undefined) { init.method = "POST"; init.headers["Content-Type"] = "application/json"; init.body = JSON.stringify(opt.body); }
+    return fetch("/api/admin/" + path, init).then(function (r) {
+      return r.json().catch(function () { return { ok: false, error: "network", status: r.status }; }).then(function (j) {
+        j.status = r.status;
+        if (r.status === 401 && path !== "login") { S.me = null; renderLogin(); throw new Error("unauthorized"); }
+        return j;
+      });
+    }).catch(function (e) {
+      if (e && e.message === "unauthorized") throw e;
+      return { ok: false, error: "network" };
+    });
+  }
+  function errMsg(j) {
+    if (!j) return "알 수 없는 오류";
+    if (j.message) return j.message;
+    var m = { not_configured: "데이터베이스가 연결되지 않았습니다. 시스템 화면의 안내를 확인하세요.", db_error: "데이터베이스 오류" + (j.detail ? ": " + j.detail : ""), network: "서버에 연결할 수 없습니다.", forbidden: "권한이 없습니다.", not_found: "항목을 찾을 수 없습니다." };
+    return m[j.error] || j.error || "오류가 발생했습니다.";
+  }
+  function qs(o) { var a = []; for (var k in o) if (o[k] !== undefined && o[k] !== "" && o[k] !== null) a.push(encodeURIComponent(k) + "=" + encodeURIComponent(o[k])); return a.length ? "?" + a.join("&") : ""; }
+  function isAdmin() { return S.me && S.me.role === "admin"; }
+  function bannedIn(t) { t = String(t || ""); return BANNED.filter(function (w) { return t.indexOf(w) > -1; }); }
+  function hintFor(w) { for (var k in BANNED_HINT) if (w.indexOf(k) > -1) return BANNED_HINT[k]; return "표현 수정"; }
+  function csvDownload(name, rows) {
+    var csv = "﻿" + rows.map(function (r) { return r.map(function (c) { return '"' + String(c == null ? "" : c).replace(/"/g, '""') + '"'; }).join(","); }).join("\n");
+    var a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" })); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  }
+  function loadContent() {
+    if (S.content) return Promise.resolve(S.content);
+    return fetch("/content-index.json", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (j) {
+      S.content = j; j.forEach(function (c) { S.contentMap[c.p] = c; }); return j;
+    }).catch(function () { S.content = []; return []; });
+  }
+  function titleOf(p) { var c = S.contentMap[p]; return c ? c.t : p; }
+
+  // ============================================================ 모달·서랍
+  function confirmBox(title, html, okLabel, danger) {
+    return new Promise(function (resolve) {
+      var bg = document.createElement("div"); bg.className = "modal-bg";
+      bg.innerHTML = '<div class="modal" role="dialog" aria-modal="true"><h3>' + esc(title) + "</h3>" + html + '<div class="acts"><button class="btn btn-s" data-x="0">취소</button><button class="btn ' + (danger ? "btn-d" : "btn-p") + '" data-x="1">' + esc(okLabel || "확인") + "</button></div></div>";
+      document.body.appendChild(bg);
+      bg.addEventListener("click", function (e) { var b = e.target.closest("[data-x]"); if (b || e.target === bg) { var v = b ? b.dataset.x === "1" : false; bg.remove(); resolve(v); } });
+      bg.querySelector('[data-x="1"]').focus();
+    });
+  }
+  var drawerEl = null;
+  function openDrawer(title, bodyHtml, footHtml) {
+    closeDrawer();
+    drawerEl = document.createElement("div");
+    drawerEl.innerHTML = '<div class="drawer-bg"></div><aside class="drawer" role="dialog" aria-modal="true" aria-label="' + esc(title) + '"><div class="drawer-h"><h2>' + esc(title) + '</h2><button class="btn btn-g" data-close aria-label="닫기">닫기 ✕</button></div><div class="drawer-b">' + bodyHtml + '</div><div class="drawer-f">' + (footHtml || "") + "</div></aside>";
+    document.body.appendChild(drawerEl);
+    drawerEl.querySelector(".drawer-bg").addEventListener("click", closeDrawer);
+    drawerEl.querySelector("[data-close]").addEventListener("click", closeDrawer);
+    return drawerEl.querySelector(".drawer");
+  }
+  function closeDrawer() { if (drawerEl) { drawerEl.remove(); drawerEl = null; } }
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") { var m = document.querySelector(".modal-bg"); if (m) return; closeDrawer(); } });
+
+  // ============================================================ 로그인
+  function renderLogin(msgHtml) {
+    closeDrawer();
+    var savedName = ""; try { savedName = localStorage.getItem("bp_admin_name") || ""; } catch (e) {}
+    app.innerHTML = '<div class="login"><form class="login-card" id="lf" autocomplete="off"><img src="/assets/img/logo.png" alt="바른혈압"><h1>관리자 콘솔</h1><p>질문 답변, 문의 처리, 감수 기록, 통계를 관리합니다.</p>' +
+      '<div class="field"><label for="ln">처리자 이름</label><input id="ln" maxlength="20" required placeholder="예: 최시준" value="' + esc(savedName) + '"><div class="hint">처리 이력에 기록됩니다.</div></div>' +
+      '<div class="field"><label for="lk">접속 키</label><input id="lk" type="password" required autocomplete="current-password"></div>' +
+      '<button class="btn btn-p" style="width:100%;padding:11px" type="submit">로그인</button><div id="lmsg">' + (msgHtml || "") + "</div></form></div>";
+    var f = document.getElementById("lf");
+    (savedName ? document.getElementById("lk") : document.getElementById("ln")).focus();
+    f.addEventListener("submit", function (e) {
+      e.preventDefault();
+      var name = document.getElementById("ln").value.trim(), key = document.getElementById("lk").value;
+      var btn = f.querySelector("button"); btn.disabled = true;
+      api("login", { body: { name: name, key: key } }).then(function (j) {
+        btn.disabled = false;
+        if (j.ok) { try { localStorage.setItem("bp_admin_name", name); } catch (e) {} S.me = { role: j.role, name: j.name }; boot(); return; }
+        var m = document.getElementById("lmsg");
+        if (j.error === "no_admin_key") m.innerHTML = setupHtml("key");
+        else if (j.error === "not_configured") m.innerHTML = setupHtml("db");
+        else m.innerHTML = '<div class="setup" style="background:var(--red-soft);color:var(--red)">' + esc(errMsg(j)) + "</div>";
+      });
+    });
+  }
+  function setupHtml(kind) {
+    if (kind === "key") return '<div class="setup"><b>관리자 키가 설정되지 않았습니다.</b><ol><li>Cloudflare 대시보드 → Workers &amp; Pages → bareunbp → Settings</li><li>Variables and Secrets → Add → Type: Secret</li><li>이름 <code>ADMIN_KEY</code>, 값은 20자 이상 비밀번호 → Save</li><li>Deployments에서 최신 배포 Retry</li></ol></div>';
+    return '<div class="setup"><b>데이터베이스가 연결되지 않았습니다.</b><ol><li>Cloudflare 대시보드 → D1 → Create (이름 bareunbp)</li><li>Pages 프로젝트 → Settings → Bindings → Add → D1, 변수명 <code>DB</code></li><li>Deployments에서 최신 배포 Retry</li></ol>표는 첫 접속 때 자동으로 만들어집니다.</div>';
+  }
+
+  // ============================================================ 앱 틀
+  var NAV = [
+    { g: "운영", items: [["", "대시보드", 1], ["qna", "질문·경험담", 1], ["leads", "문의·신청", 0], ["reports", "팩트체크 요청", 0]] },
+    { g: "콘텐츠", items: [["content", "콘텐츠·감수", 1], ["corrections", "정정 이력", 1], ["notice", "사이트 공지", 0]] },
+    { g: "구독·기록", items: [["newsletter", "구독자", 0], ["audit", "활동 기록", 0], ["system", "시스템·데이터", 0]] },
+    { g: "도움말", items: [["guide", "운영 가이드", 1]] }
+  ];
+  function shell() {
+    var nav = NAV.map(function (g) {
+      var items = g.items.filter(function (it) { return isAdmin() || it[2]; });
+      if (!items.length) return "";
+      return '<div class="nav-group"><b>' + g.g + "</b>" + items.map(function (it) { return '<a href="#/' + it[0] + '" data-r="' + it[0] + '">' + it[1] + '<span class="cnt" data-b="' + it[0] + '" hidden></span></a>'; }).join("") + "</div>";
+    }).join("");
+    app.innerHTML = '<div class="topbar"><button id="mtoggle" aria-label="메뉴">☰</button><img src="/assets/img/logo.png" alt="바른혈압"><span class="tag t-teal">관리자</span></div>' +
+      '<div class="shell"><aside class="side" id="side"><div class="brand"><img src="/assets/img/logo.png" alt="바른혈압"><span>' + (isAdmin() ? "관리자" : "감수자") + "</span></div>" + nav +
+      '<div class="me"><b>' + esc(S.me.name) + '</b><span class="muted small">' + (isAdmin() ? "관리자 권한" : "감수자 권한 · 검토 전용") + '</span><div class="row"><a class="btn btn-s btn-sm" href="/" target="_blank" rel="noopener">사이트 보기</a><button class="btn btn-g btn-sm" id="logout">로그아웃</button></div></div></aside>' +
+      '<main class="main" id="main"></main></div>';
+    document.getElementById("logout").addEventListener("click", function () { api("logout", { body: {} }).then(function () { S.me = null; renderLogin('<div class="setup" style="background:var(--green-soft);color:var(--green)">로그아웃했습니다.</div>'); }); });
+    document.getElementById("mtoggle").addEventListener("click", function () { document.getElementById("side").classList.toggle("open"); });
+    document.getElementById("side").addEventListener("click", function (e) { if (e.target.closest("a[data-r]")) document.getElementById("side").classList.remove("open"); });
+  }
+  function setBadges(c) {
+    if (!c) return;
+    var map = { qna: isAdmin() ? c.qna_pending : c.qna_review, leads: c.leads_new, reports: c.reports_open };
+    for (var k in map) { var el = document.querySelector('[data-b="' + k + '"]'); if (el) { el.hidden = !map[k]; el.textContent = map[k]; } }
+  }
+  function boot() {
+    api("me").then(function (j) {
+      if (!j.ok) return;
+      S.me = { role: j.role, name: j.name, reviewer_enabled: j.reviewer_enabled };
+      shell();
+      loadContent().then(route);
+      api("dashboard").then(function (d) { if (d.ok) setBadges(d.counts); });
+    }).catch(function () {});
+  }
+  window.addEventListener("hashchange", function () { if (S.me) route(); });
+  function route() {
+    closeDrawer();
+    var h = location.hash.replace(/^#\/?/, ""), parts = h.split("?"), r = parts[0] || "";
+    S.route = r; S.params = {};
+    var side = document.getElementById("side"); if (side) side.classList.remove("open");
+    if (parts[1]) parts[1].split("&").forEach(function (kv) { var p = kv.split("="); S.params[decodeURIComponent(p[0])] = decodeURIComponent(p[1] || ""); });
+    document.querySelectorAll(".nav-group a").forEach(function (a) { a.classList.toggle("on", a.dataset.r === r); });
+    var views = { "": viewDashboard, qna: viewQna, leads: viewLeads, reports: viewReports, content: viewContent, corrections: viewCorrections, notice: viewNotice, newsletter: viewNewsletter, audit: viewAudit, system: viewSystem, guide: viewGuide };
+    var v = views[r] || viewDashboard;
+    var main = document.getElementById("main");
+    main.innerHTML = '<div class="loading">불러오는 중…</div>';
+    window.scrollTo(0, 0);
+    v(main);
+  }
+  function pageHead(title, desc, actions) {
+    return '<div class="page-h"><div><h1>' + esc(title) + "</h1>" + (desc ? "<p>" + desc + "</p>" : "") + '</div><div class="actions">' + (actions || "") + "</div></div>";
+  }
+  function tabsHtml(list, cur, counts) {
+    return '<div class="tabs">' + list.map(function (t) { var c = counts && counts[t[0]] != null ? '<span class="c">' + counts[t[0]] + "</span>" : ""; return '<button data-tab="' + t[0] + '" class="' + (t[0] === cur ? "on" : "") + '">' + t[1] + c + "</button>"; }).join("") + "</div>";
+  }
+
+  // ============================================================ 대시보드
+  function viewDashboard(main) {
+    api("dashboard").then(function (d) {
+      if (!d.ok) { main.innerHTML = pageHead("대시보드") + '<div class="callout bad">' + esc(errMsg(d)) + "</div>"; return; }
+      setBadges(d.counts);
+      var c = d.counts;
+      // 감수 현황 (콘텐츠 목록 기준)
+      var latest = {}; (d.reviews || []).forEach(function (r) { latest[r.path] = r; });
+      var need = (S.content || []).filter(function (x) { return x.r; });
+      var reviewed = 0, revise = 0, due = 0, dueCut = kstDay(365);
+      need.forEach(function (x) { var r = latest[x.p]; if (!r) return; if (r.result === "approved") { reviewed++; if (r.reviewed_at < dueCut) due++; } else revise++; });
+      var pendingReview = need.length - reviewed - revise;
+      var kpi = function (label, val, href, alert, em) { return '<a class="kpi' + (alert && val ? " alert" : "") + '" href="' + href + '"><small>' + label + '</small><b class="num">' + (val || 0) + "</b>" + (em ? "<em>" + em + "</em>" : "") + "</a>"; };
+      var kpis = isAdmin()
+        ? kpi("새 질문", c.qna_pending, "#/qna?status=pending", 1) + kpi("답변 작성 중", c.qna_draft, "#/qna?status=draft") + kpi("감수 요청", c.qna_review, "#/qna?status=review") + kpi("새 문의·신청", c.leads_new, "#/leads?status=new", 1) + kpi("팩트체크 요청", c.reports_open, "#/reports", 1) + kpi("감수 전 콘텐츠", pendingReview + revise, "#/content?st=todo", 0, "/ " + need.length) + kpi("재감수 도래", due, "#/content?st=due", 1) + kpi("레터 구독자", c.nl_active, "#/newsletter", 0, c.nl_week ? "+" + c.nl_week + " 이번 주" : "")
+        : kpi("감수 요청 답변", c.qna_review, "#/qna?status=review", 1) + kpi("감수 전 콘텐츠", pendingReview + revise, "#/content?st=todo", 0, "/ " + need.length) + kpi("재감수 도래", due, "#/content?st=due", 1) + kpi("감수 완료 콘텐츠", reviewed, "#/content?st=approved");
+      // 방문 차트
+      var days = [], map = {}; d.visits.series.forEach(function (r) { map[r.day] = r.n; });
+      for (var i = 13; i >= 0; i--) days.push({ day: kstDay(i), n: map[kstDay(i)] || 0 });
+      var max = Math.max.apply(null, days.map(function (x) { return x.n; }).concat([5]));
+      var W = 640, H = 170, bw = W / 14;
+      var bars = days.map(function (x, i) { var h = Math.round((x.n / max) * (H - 36)); return '<rect x="' + (i * bw + 6) + '" y="' + (H - 20 - h) + '" width="' + (bw - 12) + '" height="' + h + '" rx="3" fill="' + (i === 13 ? "#2b6fc2" : "#9fc0e6") + '"><title>' + x.day + " · " + x.n + '</title></rect><text x="' + (i * bw + bw / 2) + '" y="' + (H - 5) + '" font-size="10" fill="#8a98a8" text-anchor="middle">' + x.day.slice(5).replace("-", "/") + "</text>" + (x.n ? '<text x="' + (i * bw + bw / 2) + '" y="' + (H - 24 - h) + '" font-size="10" fill="#5f6f81" text-anchor="middle">' + x.n + "</text>" : ""); }).join("");
+      var listHtml = function (rows, labeler, emptyMsg) {
+        if (!rows || !rows.length) return '<p class="muted small" style="margin:0">' + emptyMsg + "</p>";
+        var mx = rows[0].n || 1;
+        return '<ul class="list">' + rows.map(function (r) { return "<li><span>" + labeler(r.key) + '</span><span class="num"><i class="bar" style="width:' + Math.max(4, Math.round((r.n / mx) * 60)) + 'px"></i>' + r.n + "</span></li>"; }).join("") + "</ul>";
+      };
+      var ev = {}; (d.events || []).forEach(function (r) { ev[r.key] = r.n; });
+      var funnel = '<div class="funnel"><div><small>기록 저장</small><b class="num">' + ((ev.record_saved || 0) + (ev.quick_entry || 0) + (ev.timer_done || 0)) + '</b></div><div><small>리포트 열람</small><b class="num">' + (ev.report_view || 0) + '</b></div><div><small>리포트 인쇄</small><b class="num">' + (ev.report_print || 0) + "</b></div></div>";
+      var evRows = (d.events || []).filter(function (r) { return r.key !== "search"; });
+      var noStats = !d.visits.d30;
+      var latestQ = (d.latest_qna || []).map(function (q) { return '<li><span><a href="#/qna?status=pending&id=' + q.id + '">' + esc(q.question.slice(0, 48)) + '</a></span><span class="muted small">' + ago(q.created_at) + "</span></li>"; }).join("");
+      var latestL = (d.latest_leads || []).map(function (l) { return '<li><span><a href="#/leads?status=new&id=' + l.id + '">' + esc(LEAD_TYPE[l.type] || l.type) + " · " + esc(l.org || l.name || "-") + '</a></span><span class="muted small">' + ago(l.created_at) + "</span></li>"; }).join("");
+      var aud = (d.audit || []).map(function (a) { return "<li><span>" + esc(a.actor || "-") + " · " + esc(ACTION_LABEL[a.action] || a.action) + (a.target ? ' <span class="muted">' + esc(a.target) + "</span>" : "") + '</span><span class="muted small">' + ago(a.ts) + "</span></li>"; }).join("");
+      main.innerHTML = pageHead("대시보드", "오늘 " + esc(d.today) + " · " + esc(S.me.name) + "님") +
+        '<div class="kpis">' + kpis + "</div>" +
+        '<div class="grid g2">' +
+        '<div class="card"><h2>방문 <small>익명 페이지뷰 · 오늘 ' + d.visits.today + " · 7일 " + d.visits.d7 + " · 30일 " + d.visits.d30 + '</small></h2><div class="chart"><svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="최근 14일 페이지뷰">' + bars + "</svg></div>" + (noStats ? '<p class="muted small" style="margin:6px 0 0">아직 수집된 방문이 없습니다. 배포 후 방문이 쌓이면 표시됩니다.</p>' : "") + "</div>" +
+        '<div class="card"><h2>도구 이용 <small>최근 30일</small></h2>' + funnel + listHtml(evRows, function (k) { return esc(EVENT_LABEL[k] || k); }, "아직 기록이 없습니다.") + "</div>" +
+        '<div class="card"><h2>많이 본 페이지 <small>최근 7일</small></h2>' + listHtml(d.top, function (k) { return '<a href="' + esc(k) + '" target="_blank" rel="noopener" title="' + esc(k) + '">' + esc(titleOf(k)) + "</a>"; }, "아직 기록이 없습니다.") + "</div>" +
+        '<div class="card"><h2>사이트 검색어 <small>최근 30일 · 콘텐츠 기획에 활용</small></h2>' + listHtml(d.searches, function (k) { return esc(k); }, "아직 검색 기록이 없습니다.") + "</div>" +
+        '<div class="card"><h2>유입 경로 <small>최근 30일</small></h2>' + listHtml(d.refs, function (k) { return esc(k); }, "외부 유입 기록이 없습니다. 검색엔진 등록 후 늘어납니다.") + "</div>" +
+        '<div class="card"><h2>최근 접수</h2>' + (latestQ || latestL ? '<ul class="list">' + latestQ + latestL + "</ul>" : '<p class="muted small" style="margin:0">처리할 새 접수가 없습니다.</p>') + "</div>" +
+        "</div>" +
+        (isAdmin() ? '<div class="card" style="margin-top:14px"><h2>최근 활동 <a class="btn btn-g btn-sm" href="#/audit">전체 보기</a></h2>' + (aud ? '<ul class="list">' + aud + "</ul>" : '<p class="muted small" style="margin:0">기록이 없습니다.</p>') + "</div>" : "");
+    });
+  }
+
+  // ============================================================ 질문·경험담
+  function viewQna(main) {
+    var st = S.params.status || (isAdmin() ? "pending" : "review"), cat = S.params.cat || "", kw = S.params.q || "", off = 0, items = [];
+    function load(append) {
+      api("qna" + qs({ status: st, cat: cat, q: kw, limit: 50, offset: off })).then(function (j) {
+        if (!j.ok) { main.innerHTML = pageHead("질문·경험담") + '<div class="callout bad">' + esc(errMsg(j)) + "</div>"; return; }
+        items = append ? items.concat(j.items) : j.items;
+        var tabs = [["pending", "새 질문"], ["draft", "작성 중"], ["review", "감수 요청"], ["published", "게시됨"], ["hidden", "숨김"], ["all", "전체"]];
+        var counts = j.tabs || {}; counts.all = Object.keys(j.tabs || {}).reduce(function (a, k) { return a + j.tabs[k]; }, 0);
+        var rows = items.map(function (q) {
+          var flags = (q.category === "경험담" ? '<span class="tag t-teal">경험담</span> ' : "") + (q.same_ip > 2 ? '<span class="tag t-amber" title="같은 접속지에서 ' + q.same_ip + '건">반복 ' + q.same_ip + "</span> " : "") + (q.question_original ? '<span class="tag">질문 수정됨</span> ' : "") + (q.reviewed_by ? '<span class="tag t-green">검토 완료</span> ' : "");
+          return '<tr class="click" data-id="' + q.id + '"><td class="num hide-m">' + q.id + '</td><td><span class="tag ' + QNA_TAG[q.status] + '">' + QNA_ST[q.status] + "</span></td><td>" + flags + '<div class="ex">' + esc(q.question) + '</div></td><td class="hide-m">' + esc(q.category || "-") + '</td><td class="hide-m">' + esc(q.nickname) + '</td><td class="muted small">' + ago(q.created_at) + "</td></tr>";
+        }).join("");
+        var catSel = '<select class="inp" id="f-cat"><option value="">모든 주제</option>' + QNA_CATS.map(function (c) { return "<option" + (c === cat ? " selected" : "") + ">" + c + "</option>"; }).join("") + "</select>";
+        main.innerHTML = pageHead("질문·경험담", isAdmin() ? "접수된 질문에 근거를 붙여 답하고 게시합니다. 게시된 글은 커뮤니티 페이지에 1분 안에 반영됩니다." : "감수 요청된 답변을 검토하고 의견을 남깁니다. 게시는 관리자가 합니다.") +
+          tabsHtml(tabs, st, counts) +
+          '<div class="filters">' + catSel + '<input class="inp" id="f-q" type="search" placeholder="질문·답변·닉네임 검색" value="' + esc(kw) + '"><button class="btn btn-s btn-sm" id="f-go">검색</button></div>' +
+          '<div class="table-wrap"><table><thead><tr><th class="hide-m">#</th><th>상태</th><th>질문</th><th class="hide-m">주제</th><th class="hide-m">닉네임</th><th>접수</th></tr></thead><tbody>' + (rows || '<tr><td colspan="6" class="empty">해당하는 질문이 없습니다.</td></tr>') + "</tbody></table></div>" +
+          (items.length < j.total ? '<div class="more"><button class="btn btn-s" id="more">더 보기 (' + items.length + " / " + j.total + ")</button></div>" : "");
+        bindList();
+        if (S.params.id) { var it = items.filter(function (x) { return String(x.id) === S.params.id; })[0]; S.params.id = null; if (it) openQna(it, reload); }
+      });
+    }
+    function reload() { off = 0; load(false); api("dashboard").then(function (d) { if (d.ok) setBadges(d.counts); }); }
+    function bindList() {
+      main.querySelectorAll("[data-tab]").forEach(function (b) { b.onclick = function () { st = b.dataset.tab; off = 0; load(false); }; });
+      var go = function () { kw = document.getElementById("f-q").value.trim(); cat = document.getElementById("f-cat").value; off = 0; load(false); };
+      document.getElementById("f-go").onclick = go;
+      document.getElementById("f-q").onkeydown = function (e) { if (e.key === "Enter") go(); };
+      document.getElementById("f-cat").onchange = go;
+      var mb = document.getElementById("more"); if (mb) mb.onclick = function () { off = items.length; load(true); };
+      main.querySelectorAll("tr[data-id]").forEach(function (tr) { tr.onclick = function () { var it = items.filter(function (x) { return String(x.id) === tr.dataset.id; })[0]; openQna(it, reload); }; });
+    }
+    load(false);
+  }
+
+  function linkPicker(onPick) {
+    var html = '<div class="field"><input class="inp" type="search" placeholder="글 제목으로 찾기 (예: 정상수치, 나트륨)" data-pk></div><div class="picker" data-pl></div>';
+    return { html: html, bind: function (root) {
+      var inp = root.querySelector("[data-pk]"), list = root.querySelector("[data-pl]");
+      function draw() {
+        var v = inp.value.trim();
+        var rows = (S.content || []).filter(function (c) { return !v || c.t.indexOf(v) > -1 || c.p.indexOf(v) > -1; }).slice(0, 30);
+        list.innerHTML = rows.map(function (c) { return '<button type="button" data-p="' + esc(c.p) + '">' + esc(c.t) + "<small>" + esc(TYPE_LABEL[c.k] || c.k) + " · " + esc(c.p) + "</small></button>"; }).join("") || '<div class="empty">결과 없음</div>';
+      }
+      inp.oninput = draw; draw();
+      list.onclick = function (e) { var b = e.target.closest("[data-p]"); if (b) onPick(S.contentMap[b.dataset.p]); };
+    } };
+  }
+
+  function openQna(q, done) {
+    var admin = isAdmin(), story = q.category === "경험담";
+    var catOpts = QNA_CATS.map(function (c) { return "<option" + (c === q.category ? " selected" : "") + ">" + c + "</option>"; }).join("");
+    var tpl = '<select data-tpl><option value="">답변 틀 넣기…</option>' + TEMPLATES.map(function (t, i) { return '<option value="' + i + '">' + esc(t.n) + "</option>"; }).join("") + "</select>";
+    var meta = '<div class="meta"><span>#' + q.id + "</span><span>" + kst(q.created_at) + " 접수</span><span>" + esc(q.nickname) + "</span>" + (q.same_ip > 1 ? "<span>같은 접속지 " + q.same_ip + "건</span>" : "") + (q.handled_by ? "<span>최근 처리 " + esc(q.handled_by) + " · " + ago(q.updated_at) + "</span>" : "") + '<span class="tag ' + QNA_TAG[q.status] + '">' + QNA_ST[q.status] + "</span></div>";
+    var reviewBox = (q.review_note || q.reviewed_by) ? '<div class="callout ' + (q.reviewed_by ? "" : "warn") + '" style="margin-top:10px">' + (q.reviewed_by ? "<b>검토 완료</b> · " + esc(q.reviewed_by) + " · " + kst(q.reviewed_at) : "<b>감수 의견</b>") + (q.review_note ? '<div style="margin-top:4px;white-space:pre-wrap">' + esc(q.review_note) + "</div>" : "") + "</div>" : "";
+    var body;
+    if (admin) {
+      body = meta +
+        '<div class="sec"><h3>질문 <span><button class="btn btn-g btn-sm" type="button" data-mask>연락처·이메일 가리기</button></span></h3><div class="field"><textarea data-q rows="4">' + esc(q.question) + "</textarea><div class=\"hint\">공개되는 글입니다. 이름·연락처·병원명 등 개인을 알아볼 수 있는 정보는 지워 주세요. 수정하면 원문은 기록으로 보관됩니다.</div></div>" +
+        (q.question_original ? '<details class="small"><summary class="muted">접수 원문 보기</summary><div class="box" style="margin-top:6px">' + esc(q.question_original) + "</div></details>" : "") +
+        '<div class="row2" style="margin-top:8px"><div class="field"><label>닉네임</label><input data-nick maxlength="20" value="' + esc(q.nickname) + '"></div><div class="field"><label>주제</label><select data-cat>' + catOpts + "</select></div></div></div>" +
+        '<div class="sec"><h3>답변' + (story ? ' <span class="muted small" style="font-weight:500">경험담은 답변 없이 게시할 수 있습니다</span>' : "") + '</h3><div class="toolbar">' + tpl + '<button class="btn btn-s btn-sm" type="button" data-link>관련 글 링크</button></div>' +
+        '<div data-lp hidden></div><div class="field"><textarea data-a rows="9" placeholder="근거를 붙여 답합니다. 링크는 [글 제목](/info/주소.html) 형식으로 넣으면 공개 화면에서 눌러 이동할 수 있습니다.">' + esc(q.answer || "") + '</textarea><div class="hint"><span data-len>0</span>자 · 진단·약 조정·개인 위험도는 답하지 않습니다.</div></div><div data-terms></div>' +
+        '<div class="sec"><h3>공개 화면 미리보기</h3><div class="preview" data-pv></div></div></div>' + reviewBox;
+    } else {
+      body = meta + '<div class="sec"><h3>질문</h3><div class="box q">' + esc(q.question) + '</div></div><div class="sec"><h3>작성된 답변</h3>' + (q.answer ? '<div class="preview">' + renderAnswer(q.answer) + "</div>" : '<p class="muted">아직 답변이 없습니다.</p>') + "<div data-terms></div></div>" + reviewBox +
+        '<div class="sec"><h3>감수 의견</h3><div class="field"><textarea data-rn rows="4" placeholder="정확성, 누락, 위험한 표현 등 의견을 남겨 주세요.">' + esc(q.review_note || "") + "</textarea></div></div>";
+    }
+    var foot = admin
+      ? '<div class="left"><button class="btn btn-d btn-sm" data-act="delete">삭제</button>' + (q.status !== "hidden" ? '<button class="btn btn-g btn-sm" data-act="hidden">숨김</button>' : "") + '</div><button class="btn btn-s" data-act="draft">작성 중 저장</button>' + (S.me.reviewer_enabled ? '<button class="btn btn-s" data-act="review">감수 요청</button>' : "") + '<button class="btn btn-p" data-act="published">' + (q.status === "published" ? "수정 게시" : "게시") + "</button>"
+      : '<button class="btn btn-s" data-rv="back">수정 요청</button><button class="btn btn-t" data-rv="ok">검토 완료</button>';
+    var d = openDrawer("질문 #" + q.id, body, foot);
+
+    if (admin) {
+      var ta = d.querySelector("[data-a]"), pv = d.querySelector("[data-pv]"), terms = d.querySelector("[data-terms]"), len = d.querySelector("[data-len]");
+      var refresh = function () {
+        pv.innerHTML = '<span class="lbl">바른혈압 편집팀 답변</span>' + (ta.value.trim() ? renderAnswer(ta.value) : '<span class="muted">답변을 입력하면 여기에 보입니다.</span>');
+        len.textContent = ta.value.length;
+        var hits = bannedIn(ta.value);
+        terms.innerHTML = hits.length ? '<div class="terms"><b>표현 확인 필요</b> — 의료행위로 오인될 수 있는 표현입니다.<ul>' + hits.map(function (w) { return "<li>‘" + esc(w) + "’ → " + esc(hintFor(w)) + "</li>"; }).join("") + "</ul></div>" : (ta.value.trim() ? '<div class="terms ok">표현 기준을 통과했습니다.</div>' : "");
+      };
+      ta.oninput = refresh; refresh();
+      d.querySelector("[data-tpl]").onchange = function (e) {
+        var t = TEMPLATES[e.target.value]; if (!t) return;
+        ta.value = ta.value.trim() ? ta.value.trim() + "\n\n" + t.t : t.t; e.target.value = ""; refresh(); ta.focus();
+      };
+      var lp = d.querySelector("[data-lp]");
+      d.querySelector("[data-link]").onclick = function () {
+        if (!lp.hidden) { lp.hidden = true; return; }
+        var pk = linkPicker(function (c) {
+          var ins = "[" + c.t.split(" — ")[0] + "](" + c.p + ")";
+          var s = ta.selectionStart || ta.value.length, before = ta.value.slice(0, s);
+          if (before && !/\s$/.test(before)) ins = " " + ins;
+          ta.value = before + ins + ta.value.slice(s); lp.hidden = true; refresh(); ta.focus(); ta.selectionStart = ta.selectionEnd = s + ins.length;
+        });
+        lp.innerHTML = pk.html; lp.hidden = false; pk.bind(lp);
+      };
+      d.querySelector("[data-mask]").onclick = function () {
+        var qa = d.querySelector("[data-q]");
+        qa.value = qa.value.replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, "○○○@○○○").replace(/01[016789][-\s.]?\d{3,4}[-\s.]?\d{4}/g, "010-○○○○-○○○○").replace(/0\d{1,2}[-\s.]?\d{3,4}[-\s.]?\d{4}/g, "○○-○○○○-○○○○");
+        toast("연락처·이메일 형식을 가렸습니다. 저장해야 반영됩니다.");
+      };
+      d.querySelectorAll("[data-act]").forEach(function (b) {
+        b.onclick = function () {
+          var act = b.dataset.act;
+          if (act === "delete") {
+            confirmBox("질문을 삭제할까요?", "<p>삭제하면 되돌릴 수 없습니다. 공개하지 않을 글은 ‘숨김’을 권장합니다.</p>", "삭제", true).then(function (ok) {
+              if (!ok) return;
+              api("qna/" + q.id + "/delete", { body: {} }).then(function (j) { if (j.ok) { toast("삭제했습니다."); closeDrawer(); done(); } else toast(errMsg(j), true); });
+            });
+            return;
+          }
+          var payload = { status: act, answer: ta.value, question: d.querySelector("[data-q]").value, nickname: d.querySelector("[data-nick]").value, category: d.querySelector("[data-cat]").value };
+          var send = function (ack) {
+            payload.ack_terms = !!ack;
+            b.disabled = true;
+            api("qna/" + q.id, { body: payload }).then(function (j) {
+              b.disabled = false;
+              if (j.ok) { toast({ draft: "저장했습니다.", review: "감수를 요청했습니다.", published: "게시했습니다. 1분 안에 커뮤니티에 반영됩니다.", hidden: "숨겼습니다." }[act] || "저장했습니다."); closeDrawer(); done(); return; }
+              if (j.error === "banned_terms") {
+                confirmBox("표현을 다시 확인하세요", "<p>다음 표현이 답변에 있습니다.</p><p><b>" + j.terms.map(esc).join(", ") + "</b></p><p class=\"muted small\">문맥상 문제가 없다면(예: ‘완치된다는 말은 사실이 아닙니다’) 확인 후 게시할 수 있습니다. 이 확인은 활동 기록에 남습니다.</p>", "확인했고 게시").then(function (ok) { if (ok) send(true); });
+                return;
+              }
+              toast(errMsg(j), true);
+            });
+          };
+          if (act === "published" && !payload.answer.trim() && payload.category !== "경험담") { toast("답변을 입력해야 게시할 수 있습니다.", true); return; }
+          if (act === "published" && !q.reviewed_by && S.me.reviewer_enabled) {
+            confirmBox("감수 없이 게시할까요?", "<p>이 답변은 아직 감수자 검토를 거치지 않았습니다. 일반 정보 안내라면 게시해도 되지만, 약·검사·수치 해석이 들어 있다면 감수 요청을 권장합니다.</p>", "게시").then(function (ok) { if (ok) send(false); });
+            return;
+          }
+          send(false);
+        };
+      });
+    } else {
+      var tm = d.querySelector("[data-terms]"); var hits = bannedIn(q.answer);
+      if (hits.length) tm.innerHTML = '<div class="terms"><b>표현 확인 필요</b><ul>' + hits.map(function (w) { return "<li>" + esc(w) + "</li>"; }).join("") + "</ul></div>";
+      d.querySelectorAll("[data-rv]").forEach(function (b) {
+        b.onclick = function () {
+          var ok = b.dataset.rv === "ok";
+          api("qna/" + q.id + "/review", { body: { approve: ok, review_note: d.querySelector("[data-rn]").value } }).then(function (j) {
+            if (j.ok) { toast(ok ? "검토 완료로 표시했습니다." : "수정 요청을 남겼습니다."); closeDrawer(); done(); } else toast(errMsg(j), true);
+          });
+        };
+      });
+    }
+  }
+
+  // ============================================================ 문의·신청
+  function viewLeads(main) {
+    var st = S.params.status || "all", type = "", kw = "", off = 0, items = [];
+    function load(append) {
+      api("leads" + qs({ status: st, type: type, q: kw, limit: 50, offset: off })).then(function (j) {
+        if (!j.ok) { main.innerHTML = pageHead("문의·신청") + '<div class="callout bad">' + esc(errMsg(j)) + "</div>"; return; }
+        items = append ? items.concat(j.items) : j.items;
+        var counts = j.tabs || {}; counts.all = Object.keys(counts).reduce(function (a, k) { return a + counts[k]; }, 0);
+        var tabs = [["all", "전체"], ["new", "신규"], ["contacted", "연락함"], ["progress", "진행 중"], ["done", "완료"], ["hold", "보류"]];
+        var typeSel = '<select class="inp" id="f-type"><option value="">모든 유형</option>' + Object.keys(LEAD_TYPE).map(function (k) { return '<option value="' + k + '"' + (k === type ? " selected" : "") + ">" + LEAD_TYPE[k] + "</option>"; }).join("") + "</select>";
+        var rows = items.map(function (l) {
+          return '<tr class="click" data-id="' + l.id + '"><td class="muted small">' + kstDate(l.created_at) + '</td><td><span class="tag ' + LEAD_TAG[l.status] + '">' + (LEAD_ST[l.status] || l.status) + "</span></td><td>" + esc(LEAD_TYPE[l.type] || l.type) + "</td><td><b>" + esc(l.org || "-") + '</b><div class="muted small">' + esc(l.name || "") + '</div></td><td class="hide-m">' + esc(l.contact) + '</td><td class="hide-m"><div class="ex">' + esc(l.memo || l.message || "") + "</div></td></tr>";
+        }).join("");
+        main.innerHTML = pageHead("문의·신청", "기관 협력 문의와 가족 기능 사전 신청을 처리합니다. 처리 완료 후 1년이 지나면 시스템 화면에서 파기할 수 있습니다.", '<button class="btn btn-s btn-sm" id="csv">CSV 내려받기</button>') +
+          tabsHtml(tabs, st, counts) +
+          '<div class="filters">' + typeSel + '<input class="inp" id="f-q" type="search" placeholder="기관·이름·연락처·메모 검색" value="' + esc(kw) + '"><button class="btn btn-s btn-sm" id="f-go">검색</button></div>' +
+          '<div class="table-wrap"><table><thead><tr><th>접수</th><th>상태</th><th>유형</th><th>기관·담당</th><th class="hide-m">연락처</th><th class="hide-m">내용·메모</th></tr></thead><tbody>' + (rows || '<tr><td colspan="6" class="empty">해당하는 문의가 없습니다.</td></tr>') + "</tbody></table></div>" +
+          (items.length < j.total ? '<div class="more"><button class="btn btn-s" id="more">더 보기</button></div>' : "");
+        main.querySelectorAll("[data-tab]").forEach(function (b) { b.onclick = function () { st = b.dataset.tab; off = 0; load(); }; });
+        var go = function () { kw = document.getElementById("f-q").value.trim(); type = document.getElementById("f-type").value; off = 0; load(); };
+        document.getElementById("f-go").onclick = go; document.getElementById("f-type").onchange = go;
+        document.getElementById("f-q").onkeydown = function (e) { if (e.key === "Enter") go(); };
+        var mb = document.getElementById("more"); if (mb) mb.onclick = function () { off = items.length; load(true); };
+        document.getElementById("csv").onclick = function () {
+          csvDownload("바른혈압_문의_" + kstDay() + ".csv", [["번호", "접수일", "유형", "기관", "담당자", "연락처", "내용", "상태", "메모", "처리자"]].concat(items.map(function (l) { return [l.id, kst(l.created_at), LEAD_TYPE[l.type] || l.type, l.org, l.name, l.contact, l.message, LEAD_ST[l.status], l.memo, l.handled_by]; })));
+        };
+        main.querySelectorAll("tr[data-id]").forEach(function (tr) { tr.onclick = function () { openLead(items.filter(function (x) { return String(x.id) === tr.dataset.id; })[0], reload); }; });
+        if (S.params.id) { var it = items.filter(function (x) { return String(x.id) === S.params.id; })[0]; S.params.id = null; if (it) openLead(it, reload); }
+      });
+    }
+    function reload() { off = 0; load(); api("dashboard").then(function (d) { if (d.ok) setBadges(d.counts); }); }
+    load();
+  }
+  function contactLinks(c) {
+    if (!c) return "";
+    if (/@/.test(c)) return '<a class="btn btn-s btn-sm" href="mailto:' + esc(c) + '">메일 쓰기</a>';
+    var t = c.replace(/[^\d+]/g, ""); if (t.length >= 9) return '<a class="btn btn-s btn-sm" href="tel:' + esc(t) + '">전화 걸기</a>';
+    return "";
+  }
+  function openLead(l, done) {
+    var stOpts = Object.keys(LEAD_ST).map(function (k) { return '<option value="' + k + '"' + (k === l.status ? " selected" : "") + ">" + LEAD_ST[k] + "</option>"; }).join("");
+    var body = '<div class="meta"><span>#' + l.id + "</span><span>" + kst(l.created_at) + " 접수</span><span>" + esc(LEAD_TYPE[l.type] || l.type) + "</span>" + (l.handled_by ? "<span>최근 처리 " + esc(l.handled_by) + " · " + ago(l.updated_at) + "</span>" : "") + "</div>" +
+      '<div class="row2"><div class="field"><label>기관</label><div class="box">' + esc(l.org || "-") + '</div></div><div class="field"><label>담당자</label><div class="box">' + esc(l.name || "-") + "</div></div></div>" +
+      '<div class="sec"><h3>연락처 <span>' + contactLinks(l.contact) + ' <button class="btn btn-g btn-sm" data-copy>복사</button></span></h3><div class="box">' + esc(l.contact) + "</div></div>" +
+      '<div class="sec"><h3>문의 내용</h3><div class="box">' + esc(l.message || "(내용 없음)") + "</div></div>" +
+      '<div class="sec"><h3>처리</h3><div class="field"><label>상태</label><select data-st>' + stOpts + '</select></div><div class="field" style="margin-top:10px"><label>메모 (내부용)</label><textarea data-memo rows="5" placeholder="연락 일시, 논의 내용, 다음 할 일">' + esc(l.memo || "") + "</textarea></div></div>";
+    var d = openDrawer("문의 #" + l.id, body, '<div class="left"><button class="btn btn-d btn-sm" data-del>개인정보 파기</button></div><button class="btn btn-p" data-save>저장</button>');
+    d.querySelector("[data-copy]").onclick = function () { navigator.clipboard && navigator.clipboard.writeText(l.contact).then(function () { toast("연락처를 복사했습니다."); }); };
+    d.querySelector("[data-save]").onclick = function () {
+      api("leads/" + l.id, { body: { status: d.querySelector("[data-st]").value, memo: d.querySelector("[data-memo]").value } }).then(function (j) { if (j.ok) { toast("저장했습니다."); closeDrawer(); done(); } else toast(errMsg(j), true); });
+    };
+    d.querySelector("[data-del]").onclick = function () {
+      confirmBox("이 문의를 파기할까요?", "<p>연락처를 포함한 문의 기록이 영구 삭제됩니다. 파기 사실은 활동 기록에 남습니다.</p>", "파기", true).then(function (ok) {
+        if (ok) api("leads/" + l.id + "/delete", { body: {} }).then(function (j) { if (j.ok) { toast("파기했습니다."); closeDrawer(); done(); } else toast(errMsg(j), true); });
+      });
+    };
+  }
+
+  // ============================================================ 팩트체크 요청
+  function viewReports(main) {
+    var st = "open", kw = "", items = [];
+    function load() {
+      api("reports" + qs({ status: st, q: kw, limit: 100 })).then(function (j) {
+        if (!j.ok) { main.innerHTML = pageHead("팩트체크 요청") + '<div class="callout bad">' + esc(errMsg(j)) + "</div>"; return; }
+        items = j.items;
+        var c = j.tabs || {}; var counts = { open: (c.pending || 0) + (c.reviewing || 0), reviewing: c.reviewing, published: c.published, rejected: c.rejected, duplicate: c.duplicate, all: Object.keys(c).reduce(function (a, k) { return a + c[k]; }, 0) };
+        var tabs = [["open", "처리 대기"], ["reviewing", "검토 중"], ["published", "발행"], ["rejected", "반려"], ["duplicate", "중복"], ["all", "전체"]];
+        var rows = items.map(function (r) {
+          return '<tr class="click" data-id="' + r.id + '"><td class="muted small">' + kstDate(r.created_at) + '</td><td><span class="tag ' + REP_TAG[r.status] + '">' + REP_ST[r.status] + '</span></td><td><div class="ex">' + esc(r.claim) + '</div></td><td class="hide-m">' + (r.source_url ? '<span class="tag">출처 있음</span>' : "") + (r.contact ? ' <span class="tag">회신 요청</span>' : "") + "</td></tr>";
+        }).join("");
+        main.innerHTML = pageHead("팩트체크 요청", "이용자가 보낸 검증 요청입니다. 같은 주장이 반복되면 우선순위를 높이고, 발행 후 발행 주소를 연결해 두세요.") + tabsHtml(tabs, st, counts) +
+          '<div class="filters"><input class="inp" id="f-q" type="search" placeholder="주장·메모 검색" value="' + esc(kw) + '"><button class="btn btn-s btn-sm" id="f-go">검색</button></div>' +
+          '<div class="table-wrap"><table><thead><tr><th>접수</th><th>상태</th><th>검증 요청 주장</th><th class="hide-m">정보</th></tr></thead><tbody>' + (rows || '<tr><td colspan="4" class="empty">해당하는 요청이 없습니다.</td></tr>') + "</tbody></table></div>";
+        main.querySelectorAll("[data-tab]").forEach(function (b) { b.onclick = function () { st = b.dataset.tab; load(); }; });
+        var go = function () { kw = document.getElementById("f-q").value.trim(); load(); };
+        document.getElementById("f-go").onclick = go; document.getElementById("f-q").onkeydown = function (e) { if (e.key === "Enter") go(); };
+        main.querySelectorAll("tr[data-id]").forEach(function (tr) { tr.onclick = function () { openReport(items.filter(function (x) { return String(x.id) === tr.dataset.id; })[0], function () { load(); api("dashboard").then(function (d) { if (d.ok) setBadges(d.counts); }); }); }; });
+      });
+    }
+    load();
+  }
+  function openReport(r, done) {
+    var stOpts = Object.keys(REP_ST).map(function (k) { return '<option value="' + k + '"' + (k === r.status ? " selected" : "") + ">" + REP_ST[k] + "</option>"; }).join("");
+    var fcOpts = '<option value="">(선택)</option>' + (S.content || []).filter(function (c) { return c.k === "factcheck"; }).map(function (c) { return '<option value="' + esc(c.p) + '"' + (c.p === r.published_url ? " selected" : "") + ">" + esc(c.t.replace(/^팩트체크: /, "")) + "</option>"; }).join("");
+    var src = r.source_url ? (/^https?:\/\//.test(r.source_url) ? '<a href="' + esc(r.source_url) + '" target="_blank" rel="noopener noreferrer nofollow">' + esc(r.source_url) + "</a>" : esc(r.source_url)) : "(없음)";
+    var body = '<div class="meta"><span>#' + r.id + "</span><span>" + kst(r.created_at) + " 접수</span>" + (r.handled_by ? "<span>최근 처리 " + esc(r.handled_by) + "</span>" : "") + "</div>" +
+      '<div class="sec"><h3>검증 요청 주장</h3><div class="box q">' + esc(r.claim) + "</div></div>" +
+      '<div class="sec"><h3>출처</h3><div class="box">' + src + '</div><div class="hint muted small" style="margin-top:4px">외부 링크는 새 창으로 열립니다. 출처 링크를 열 때 주의하세요.</div></div>' +
+      (r.contact ? '<div class="sec"><h3>회신 이메일 <span>' + contactLinks(r.contact) + '</span></h3><div class="box">' + esc(r.contact) + "</div></div>" : "") +
+      '<div class="sec"><h3>처리</h3><div class="row2"><div class="field"><label>상태</label><select data-st>' + stOpts + '</select></div><div class="field"><label>발행한 팩트체크</label><select data-pub>' + fcOpts + '</select></div></div><div class="field" style="margin-top:10px"><label>메모 (근거 자료, 판정 방향)</label><textarea data-memo rows="5">' + esc(r.memo || "") + "</textarea></div></div>" +
+      '<div class="callout" style="margin-top:12px">새 팩트체크 글은 생성기(_src/gen/factchecks.py)에 추가해 배포합니다. 발행 후 이 요청을 ‘발행’으로 바꾸고 발행 글을 연결하세요.</div>';
+    var d = openDrawer("팩트체크 요청 #" + r.id, body, '<div class="left"><button class="btn btn-d btn-sm" data-del>삭제</button></div><button class="btn btn-p" data-save>저장</button>');
+    d.querySelector("[data-save]").onclick = function () {
+      api("reports/" + r.id, { body: { status: d.querySelector("[data-st]").value, memo: d.querySelector("[data-memo]").value, published_url: d.querySelector("[data-pub]").value } }).then(function (j) { if (j.ok) { toast("저장했습니다."); closeDrawer(); done(); } else toast(errMsg(j), true); });
+    };
+    d.querySelector("[data-del]").onclick = function () {
+      confirmBox("요청을 삭제할까요?", "<p>회신 이메일을 포함한 기록이 삭제됩니다.</p>", "삭제", true).then(function (ok) { if (ok) api("reports/" + r.id + "/delete", { body: {} }).then(function (j) { if (j.ok) { toast("삭제했습니다."); closeDrawer(); done(); } else toast(errMsg(j), true); }); });
+    };
+  }
+
+  // ============================================================ 콘텐츠·감수
+  function viewContent(main) {
+    var flt = S.params.st || "all", type = "", kw = "";
+    api("reviews").then(function (j) {
+      if (!j.ok) { main.innerHTML = pageHead("콘텐츠·감수") + '<div class="callout bad">' + esc(errMsg(j)) + "</div>"; return; }
+      var hist = {}; j.items.forEach(function (r) { (hist[r.path] = hist[r.path] || []).push(r); });
+      var dueCut = kstDay(365);
+      var rows = (S.content || []).filter(function (c) { return c.r; }).map(function (c) {
+        var h = hist[c.p] || [], last = h[0] || null, s;
+        if (!last) s = "todo"; else if (last.result === "revise") s = "revise"; else if (last.reviewed_at < dueCut) s = "due"; else s = "approved";
+        return { c: c, last: last, s: s, n: h.length };
+      });
+      var cnt = { all: rows.length, todo: 0, revise: 0, approved: 0, due: 0 };
+      rows.forEach(function (r) { cnt[r.s]++; });
+      var pct = rows.length ? Math.round(((cnt.approved + cnt.due) / rows.length) * 100) : 0;
+      var ST = { todo: ["감수 예정", "t-amber"], revise: ["수정 필요", "t-red"], approved: ["감수 완료", "t-green"], due: ["재감수 도래", "t-red"] };
+      function draw() {
+        var list = rows.filter(function (r) {
+          if (flt === "todo" && !(r.s === "todo" || r.s === "revise")) return false;
+          if (flt !== "all" && flt !== "todo" && r.s !== flt) return false;
+          if (type && r.c.k !== type) return false;
+          if (kw && r.c.t.indexOf(kw) === -1 && r.c.p.indexOf(kw) === -1) return false;
+          return true;
+        });
+        var trs = list.map(function (r) {
+          var l = r.last;
+          return '<tr class="click" data-p="' + esc(r.c.p) + '"><td><b>' + esc(r.c.t) + '</b><div class="muted small">' + esc(r.c.p) + '</div></td><td class="hide-m">' + esc(TYPE_LABEL[r.c.k] || r.c.k) + (r.c.c ? ' <span class="muted small">' + esc(r.c.c) + "</span>" : "") + '</td><td><span class="tag ' + ST[r.s][1] + '">' + ST[r.s][0] + '</span></td><td class="hide-m small">' + (l ? esc(l.reviewer_name) + (l.reviewer_title ? " · " + esc(l.reviewer_title) : "") + '<div class="muted">' + esc(l.reviewed_at) + (l.name_public ? " · 실명 공개" : "") + "</div>" : '<span class="muted">-</span>') + "</td></tr>";
+        }).join("");
+        document.getElementById("ctab").innerHTML = trs || '<tr><td colspan="4" class="empty">해당하는 콘텐츠가 없습니다.</td></tr>';
+        document.querySelectorAll("#ctabs [data-tab]").forEach(function (b) { b.classList.toggle("on", b.dataset.tab === flt); });
+        document.querySelectorAll("#ctab tr[data-p]").forEach(function (tr) { tr.onclick = function () { openReview(S.contentMap[tr.dataset.p], hist[tr.dataset.p] || [], function () { viewContent(main); }); }; });
+      }
+      var typeSel = '<select class="inp" id="f-type"><option value="">모든 유형</option>' + ["info", "food", "recipe", "factcheck", "guide"].map(function (k) { return '<option value="' + k + '">' + TYPE_LABEL[k] + "</option>"; }).join("") + "</select>";
+      main.innerHTML = pageHead("콘텐츠·감수", "의료진 감수 기록을 남기는 곳입니다. ‘승인’과 ‘실명 공개 동의’가 함께 기록된 글은 공개 화면의 ‘의료진 감수 예정’ 표시가 ‘감수 완료 · 감수자’로 5분 안에 바뀝니다. 감수하지 않은 글을 완료로 기록하지 마세요.", isAdmin() ? '<button class="btn btn-s btn-sm" id="csv">감수 기록 CSV</button>' : "") +
+        '<div class="card" style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><b>감수 진행률 ' + pct + '%</b><span class="muted small">감수 완료 ' + (cnt.approved + cnt.due) + " / 대상 " + cnt.all + " · 재감수 주기 12개월</span></div><div class=\"progress\"><span style=\"width:" + pct + '%"></span></div></div>' +
+        '<div id="ctabs">' + tabsHtml([["all", "전체"], ["todo", "감수 전·수정 필요"], ["approved", "감수 완료"], ["due", "재감수 도래"]], flt, { all: cnt.all, todo: cnt.todo + cnt.revise, approved: cnt.approved, due: cnt.due }) + "</div>" +
+        '<div class="filters">' + typeSel + '<input class="inp" id="f-q" type="search" placeholder="제목·주소 검색"></div>' +
+        '<div class="table-wrap"><table><thead><tr><th>콘텐츠</th><th class="hide-m">유형</th><th>상태</th><th class="hide-m">최근 감수</th></tr></thead><tbody id="ctab"></tbody></table></div>';
+      document.querySelectorAll("#ctabs [data-tab]").forEach(function (b) { b.onclick = function () { flt = b.dataset.tab; draw(); }; });
+      document.getElementById("f-type").onchange = function (e) { type = e.target.value; draw(); };
+      document.getElementById("f-q").oninput = function (e) { kw = e.target.value.trim(); draw(); };
+      var cb = document.getElementById("csv");
+      if (cb) cb.onclick = function () { csvDownload("바른혈압_감수기록_" + kstDay() + ".csv", [["주소", "제목", "감수자", "자격", "소속", "감수일", "결과", "실명공개", "의견", "기록자", "기록일시"]].concat(j.items.map(function (r) { return [r.path, r.title || titleOf(r.path), r.reviewer_name, r.reviewer_title, r.reviewer_org, r.reviewed_at, r.result === "approved" ? "승인" : "수정 필요", r.name_public ? "예" : "아니오", r.note, r.created_by, kst(r.created_at)]; }))); };
+      draw();
+    });
+  }
+  function openReview(c, hist, done) {
+    var h = hist.map(function (r) {
+      return '<li><div style="display:flex;justify-content:space-between;gap:8px"><span><span class="tag ' + (r.result === "approved" ? "t-green" : "t-red") + '">' + (r.result === "approved" ? "승인" : "수정 필요") + "</span> <b>" + esc(r.reviewer_name) + "</b> " + esc(r.reviewer_title || "") + (r.reviewer_org ? " · " + esc(r.reviewer_org) : "") + '</span><span class="muted">' + esc(r.reviewed_at) + "</span></div>" + (r.note ? '<div style="margin-top:6px;white-space:pre-wrap">' + esc(r.note) + "</div>" : "") + '<div class="muted small" style="margin-top:4px">' + (r.name_public ? "실명 공개 · " : "") + "기록 " + esc(r.created_by || "-") + " · " + kst(r.created_at) + (isAdmin() ? ' · <button class="btn btn-g btn-sm" data-delr="' + r.id + '">기록 삭제</button>' : "") + "</div></li>";
+    }).join("");
+    var lastName = hist[0] || {};
+    var body = '<div class="meta"><span>' + esc(TYPE_LABEL[c.k] || c.k) + "</span><span>" + esc(c.p) + '</span><a href="' + esc(c.p) + '" target="_blank" rel="noopener">글 열기 ↗</a></div><div class="box q">' + esc(c.t) + "</div>" +
+      '<div class="sec"><h3>감수 기록 추가</h3><div class="row3"><div class="field"><label>감수자 이름</label><input data-n maxlength="40" value="' + esc(S.me.role === "reviewer" ? S.me.name : lastName.reviewer_name || "") + '"></div><div class="field"><label>자격</label><input data-t maxlength="40" placeholder="예: 내과 전문의" value="' + esc(lastName.reviewer_title || "") + '"></div><div class="field"><label>소속 (선택)</label><input data-o maxlength="60" value="' + esc(lastName.reviewer_org || "") + '"></div></div>' +
+      '<div class="row2" style="margin-top:10px"><div class="field"><label>감수일</label><input data-d type="date" value="' + kstDay() + '" max="' + kstDay() + '"></div><div class="field"><label>결과</label><select data-r><option value="approved">승인 — 내용이 정확함</option><option value="revise">수정 필요 — 고칠 점 있음</option></select></div></div>' +
+      '<div class="field" style="margin-top:10px"><label>의견 (수정할 점, 근거, 추가할 내용)</label><textarea data-note rows="4"></textarea></div>' +
+      '<label class="check" style="margin-top:10px"><input type="checkbox" data-pub> <span>감수자에게 <b>이름·자격의 공개 동의</b>를 받았습니다. (승인 시에만 공개 화면에 표시)</span></label>' +
+      '<div class="callout warn" style="margin-top:10px">실제로 감수가 이루어진 경우에만 기록하세요. 감수하지 않은 글을 ‘감수 완료’로 표시하는 것은 이용자를 오인하게 하는 표시입니다.</div></div>' +
+      '<div class="sec"><h3>감수 이력 <span class="muted small">' + hist.length + "건</span></h3>" + (h ? '<ul class="history">' + h + "</ul>" : '<p class="muted">아직 감수 기록이 없습니다.</p>') + "</div>";
+    var d = openDrawer("감수 기록", body, '<button class="btn btn-p" data-save>기록 저장</button>');
+    d.querySelector("[data-save]").onclick = function () {
+      var payload = { path: c.p, title: c.t, reviewer_name: d.querySelector("[data-n]").value, reviewer_title: d.querySelector("[data-t]").value, reviewer_org: d.querySelector("[data-o]").value, reviewed_at: d.querySelector("[data-d]").value, result: d.querySelector("[data-r]").value, note: d.querySelector("[data-note]").value, name_public: d.querySelector("[data-pub]").checked };
+      api("reviews", { body: payload }).then(function (j) { if (j.ok) { toast(payload.result === "approved" ? (payload.name_public ? "승인 기록을 저장했습니다. 5분 안에 공개 화면에 반영됩니다." : "승인 기록을 저장했습니다. 실명 비공개라 공개 표시는 바뀌지 않습니다.") : "수정 필요 기록을 저장했습니다."); closeDrawer(); done(); } else toast(errMsg(j), true); });
+    };
+    d.querySelectorAll("[data-delr]").forEach(function (b) {
+      b.onclick = function () { confirmBox("감수 기록을 삭제할까요?", "<p>잘못 입력한 기록을 지울 때만 사용하세요. 삭제 사실은 활동 기록에 남습니다.</p>", "삭제", true).then(function (ok) { if (ok) api("reviews/" + b.dataset.delr + "/delete", { body: {} }).then(function (j) { if (j.ok) { toast("삭제했습니다."); closeDrawer(); done(); } else toast(errMsg(j), true); }); }); };
+    });
+  }
+
+  // ============================================================ 정정 이력
+  var REASONS = ["사실 오류 수정", "수치·통계 갱신", "진료지침 개정 반영", "표현 수정", "출처·링크 수정", "내용 보강"];
+  function viewCorrections(main) {
+    api("corrections").then(function (j) {
+      if (!j.ok) { main.innerHTML = pageHead("정정 이력") + '<div class="callout bad">' + esc(errMsg(j)) + "</div>"; return; }
+      var rows = j.items.map(function (c) {
+        return "<tr" + (isAdmin() ? ' class="click" data-id="' + c.id + '"' : "") + '><td class="num">' + esc(c.date) + "</td><td>" + (c.target_path ? '<a href="' + esc(c.target_path) + '" target="_blank" rel="noopener">' + esc(c.target_title || titleOf(c.target_path)) + "</a>" : esc(c.target_title || "사이트 전체")) + '</td><td><div class="ex">' + esc(c.content) + '</div></td><td class="hide-m">' + esc(c.reason || "") + '</td><td class="hide-m muted small">' + esc(c.created_by || "") + (c.updated_at ? " · 수정됨" : "") + "</td></tr>";
+      }).join("");
+      main.innerHTML = pageHead("정정 이력", "콘텐츠를 고치면 여기에 기록합니다. 저장하면 공개 <a href=\"/policy/corrections\" target=\"_blank\">정정 이력 페이지</a>에 5분 안에 표시됩니다. 정책상 정정 이력은 삭제하지 않습니다.", isAdmin() ? '<button class="btn btn-p btn-sm" id="add">정정 기록 추가</button>' : "") +
+        '<div class="table-wrap"><table><thead><tr><th>날짜</th><th>대상</th><th>내용</th><th class="hide-m">사유</th><th class="hide-m">기록</th></tr></thead><tbody>' + (rows || '<tr><td colspan="5" class="empty">DB에 기록된 정정 이력이 없습니다. (공개 페이지에는 오픈 시점의 기본 이력이 함께 표시됩니다)</td></tr>') + "</tbody></table></div>";
+      var reload = function () { viewCorrections(main); };
+      var ab = document.getElementById("add"); if (ab) ab.onclick = function () { openCorrection(null, reload); };
+      main.querySelectorAll("tr[data-id]").forEach(function (tr) { tr.onclick = function () { openCorrection(j.items.filter(function (x) { return String(x.id) === tr.dataset.id; })[0], reload); }; });
+    });
+  }
+  function openCorrection(c, done) {
+    c = c || {};
+    var reasonOpts = REASONS.map(function (r) { return "<option" + (r === c.reason ? " selected" : "") + ">" + r + "</option>"; }).join("");
+    var body = '<div class="row2"><div class="field"><label>정정 날짜</label><input data-d type="date" value="' + esc(c.date || kstDay()) + '"></div><div class="field"><label>사유</label><select data-r>' + reasonOpts + "</select></div></div>" +
+      '<div class="sec"><h3>대상 글</h3><div class="field"><input data-tt placeholder="대상 글 제목 (사이트 전체면 비워 두기)" value="' + esc(c.target_title || "") + '"><input data-tp type="hidden" value="' + esc(c.target_path || "") + '"><div class="hint" data-tph>' + esc(c.target_path || "아래에서 글을 고르면 주소가 연결됩니다.") + "</div></div><div data-pk></div></div>" +
+      '<div class="sec"><h3>정정 내용</h3><div class="field"><textarea data-c rows="5" placeholder="무엇을 어떻게 고쳤는지 (예: 나트륨 섭취량 2022년 수치를 2023년 수치로 갱신)">' + esc(c.content || "") + "</textarea></div></div>" +
+      (c.id ? '<div class="callout warn">기존 기록을 수정하면 수정 전 내용이 활동 기록에 남습니다.</div>' : "");
+    var d = openDrawer(c.id ? "정정 기록 수정" : "정정 기록 추가", body, '<button class="btn btn-p" data-save>' + (c.id ? "수정 저장" : "기록 추가") + "</button>");
+    var pk = linkPicker(function (x) { d.querySelector("[data-tt]").value = x.t; d.querySelector("[data-tp]").value = x.p; d.querySelector("[data-tph]").textContent = x.p; });
+    var holder = d.querySelector("[data-pk]"); holder.innerHTML = pk.html; pk.bind(holder);
+    d.querySelector("[data-save]").onclick = function () {
+      var payload = { date: d.querySelector("[data-d]").value, reason: d.querySelector("[data-r]").value, target_title: d.querySelector("[data-tt]").value, target_path: d.querySelector("[data-tp]").value, content: d.querySelector("[data-c]").value };
+      api("corrections" + (c.id ? "/" + c.id : ""), { body: payload }).then(function (j) { if (j.ok) { toast("저장했습니다. 5분 안에 공개 페이지에 반영됩니다."); closeDrawer(); done(); } else toast(errMsg(j), true); });
+    };
+  }
+
+  // ============================================================ 사이트 공지
+  function viewNotice(main) {
+    api("settings").then(function (j) {
+      if (!j.ok) { main.innerHTML = pageHead("사이트 공지") + '<div class="callout bad">' + esc(errMsg(j)) + "</div>"; return; }
+      var s = j.items || {}, v = function (k) { return s[k] ? s[k].value || "" : ""; };
+      main.innerHTML = pageHead("사이트 공지", "모든 페이지 맨 위의 공지 띠 문구를 바꿉니다. 끄면 기본 문구(베타 운영 안내)가 표시됩니다. 반영까지 최대 5분 걸립니다.") +
+        '<div class="card" style="max-width:760px"><div class="stack">' +
+        '<label class="check"><input type="checkbox" id="n-on"' + (v("notice_on") === "1" ? " checked" : "") + '> <span><b>공지 켜기</b></span></label>' +
+        '<div class="field"><label for="n-t">공지 문구 (140자 이내)</label><input id="n-t" maxlength="140" value="' + esc(v("notice_text")) + '" placeholder="예: 2026년 고혈압 진료지침 개정 내용을 반영해 정보를 갱신했습니다."></div>' +
+        '<div class="field"><label for="n-l">링크 (선택)</label><input id="n-l" maxlength="200" value="' + esc(v("notice_link")) + '" placeholder="/info/reading-numbers 또는 https://…"><div class="hint">사이트 안 주소는 /로 시작합니다.</div></div>' +
+        '<div><span class="muted small">미리보기</span><div class="notice-preview" id="n-pv"></div></div>' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span class="muted small">' + (s.notice_text ? "최근 변경 " + esc(s.notice_text.updated_by || "-") + " · " + kst(s.notice_text.updated_at) : "") + '</span><button class="btn btn-p" id="n-save">저장</button></div></div></div>' +
+        '<div class="callout" style="max-width:760px;margin-top:14px">공지는 짧고 사실만 씁니다. 효과·치료를 암시하는 문구, 특정 제품·병원 홍보는 쓰지 않습니다.</div>';
+      var pv = function () {
+        var t = document.getElementById("n-t").value.trim(), l = document.getElementById("n-l").value.trim(), on = document.getElementById("n-on").checked;
+        document.getElementById("n-pv").innerHTML = on && t ? esc(t) + (l ? ' <u>자세히</u>' : "") : "베타 운영 중 — 의료진 감수 체계를 갖추는 중이며, 감수가 끝난 글에는 감수자가 표기됩니다. <u>운영 원칙 보기</u> <span style=\"opacity:.7\">(기본 문구)</span>";
+      };
+      ["n-t", "n-l", "n-on"].forEach(function (id) { document.getElementById(id).oninput = pv; document.getElementById(id).onchange = pv; }); pv();
+      document.getElementById("n-save").onclick = function () {
+        api("settings", { body: { notice_on: document.getElementById("n-on").checked, notice_text: document.getElementById("n-t").value, notice_link: document.getElementById("n-l").value } }).then(function (r) { if (r.ok) toast("저장했습니다. 5분 안에 사이트에 반영됩니다."); else toast(errMsg(r), true); });
+      };
+    });
+  }
+
+  // ============================================================ 구독자
+  function viewNewsletter(main) {
+    var st = "active", kw = "", off = 0, items = [];
+    function load(append) {
+      api("newsletter" + qs({ status: st, q: kw, limit: 100, offset: off })).then(function (j) {
+        if (!j.ok) { main.innerHTML = pageHead("구독자") + '<div class="callout bad">' + esc(errMsg(j)) + "</div>"; return; }
+        items = append ? items.concat(j.items) : j.items;
+        var t = j.tabs || {}; var counts = { active: t.active || 0, unsubscribed: t.unsubscribed || 0, all: (t.active || 0) + (t.unsubscribed || 0) };
+        var rows = items.map(function (n) {
+          return '<tr><td>' + esc(n.email) + '</td><td class="muted small">' + kstDate(n.created_at) + '</td><td class="hide-m small">' + esc(n.source || "") + "</td><td>" + (n.unsubscribed_at ? '<span class="tag">수신거부 ' + kstDate(n.unsubscribed_at) + "</span>" : '<span class="tag t-green">수신 중</span>') + '</td><td style="white-space:nowrap">' +
+            (n.unsubscribed_at ? '<button class="btn btn-g btn-sm" data-a="restore" data-id="' + n.id + '">복구</button><button class="btn btn-g btn-sm" data-a="delete" data-id="' + n.id + '">파기</button>' : '<button class="btn btn-g btn-sm" data-a="unsubscribe" data-id="' + n.id + '">수신거부 처리</button>') + "</td></tr>";
+        }).join("");
+        main.innerHTML = pageHead("구독자", "주간 혈압 레터 구독자입니다. 발송은 스티비·메일침프 같은 발송 도구에서 하고, 여기서는 목록을 관리합니다.", '<button class="btn btn-p btn-sm" id="exp">발송용 CSV (수신 중 전체)</button>') +
+          tabsHtml([["active", "수신 중"], ["unsubscribed", "수신거부"], ["all", "전체"]], st, counts) +
+          '<div class="filters"><input class="inp" id="f-q" type="search" placeholder="이메일 검색" value="' + esc(kw) + '"><button class="btn btn-s btn-sm" id="f-go">검색</button></div>' +
+          '<div class="table-wrap"><table><thead><tr><th>이메일</th><th>가입</th><th class="hide-m">경로</th><th>상태</th><th></th></tr></thead><tbody>' + (rows || '<tr><td colspan="5" class="empty">구독자가 없습니다.</td></tr>') + "</tbody></table></div>" +
+          (items.length < j.total ? '<div class="more"><button class="btn btn-s" id="more">더 보기</button></div>' : "") +
+          '<div class="callout" style="margin-top:14px"><b>발송할 때 지킬 것</b><ul style="margin:6px 0 0;padding-left:18px"><li>CSV의 ‘수신거부 링크’ 열을 발송 도구에 함께 가져와, 메일 하단에 구독자별 수신거부 링크를 넣으세요. 링크를 누르면 바로 해지됩니다.</li><li>메일 하단에 발신자(주식회사 블랭크)와 연락처를 표기합니다.</li><li>수신거부 후 30일이 지난 이메일은 시스템 화면의 ‘보유기간 파기’로 지웁니다.</li></ul></div>';
+        main.querySelectorAll("[data-tab]").forEach(function (b) { b.onclick = function () { st = b.dataset.tab; off = 0; load(); }; });
+        var go = function () { kw = document.getElementById("f-q").value.trim(); off = 0; load(); };
+        document.getElementById("f-go").onclick = go; document.getElementById("f-q").onkeydown = function (e) { if (e.key === "Enter") go(); };
+        var mb = document.getElementById("more"); if (mb) mb.onclick = function () { off = items.length; load(true); };
+        document.getElementById("exp").onclick = function () {
+          api("newsletter" + qs({ status: "active", all: 1 })).then(function (r) {
+            if (!r.ok) { toast(errMsg(r), true); return; }
+            csvDownload("바른혈압_레터구독자_" + kstDay() + ".csv", [["email", "가입일", "수신거부 링크"]].concat(r.items.map(function (n) { return [n.email, kstDate(n.created_at), n.unsub_url]; })));
+            toast(r.items.length + "명 내보냈습니다. 내보내기 기록이 남습니다.");
+          });
+        };
+        main.querySelectorAll("[data-a]").forEach(function (b) {
+          b.onclick = function () {
+            var a = b.dataset.a, idv = b.dataset.id;
+            var run = function () { api("newsletter/" + idv + (a === "delete" ? "/delete" : ""), { body: { action: a } }).then(function (r) { if (r.ok) { toast("처리했습니다."); off = 0; load(); } else toast(errMsg(r), true); }); };
+            if (a === "delete") confirmBox("이메일을 파기할까요?", "<p>구독 기록이 영구 삭제됩니다.</p>", "파기", true).then(function (ok) { if (ok) run(); });
+            else run();
+          };
+        });
+      });
+    }
+    load();
+  }
+
+  // ============================================================ 활동 기록
+  function viewAudit(main) {
+    var kw = "", off = 0, items = [];
+    function load(append) {
+      api("audit" + qs({ q: kw, limit: 100, offset: off })).then(function (j) {
+        if (!j.ok) { main.innerHTML = pageHead("활동 기록") + '<div class="callout bad">' + esc(errMsg(j)) + "</div>"; return; }
+        items = append ? items.concat(j.items) : j.items;
+        var rows = items.map(function (a) { return '<tr><td class="muted small" style="white-space:nowrap">' + kst(a.ts) + "</td><td>" + esc(a.actor || "-") + ' <span class="muted small">' + (a.role === "admin" ? "관리자" : a.role === "reviewer" ? "감수자" : "") + '</span></td><td><span class="tag ' + (a.action === "login_failed" ? "t-red" : /delete|purge/.test(a.action) ? "t-amber" : "") + '">' + esc(ACTION_LABEL[a.action] || a.action) + "</span></td><td>" + esc(a.target || "") + '</td><td class="hide-m"><div class="ex">' + esc(a.detail || "") + "</div></td></tr>"; }).join("");
+        main.innerHTML = pageHead("활동 기록", "로그인, 게시·삭제, 감수 기록, 파기·내보내기 등 관리자 작업이 모두 남습니다. 기록은 수정하거나 지울 수 없습니다.") +
+          '<div class="filters"><input class="inp" id="f-q" type="search" placeholder="처리자·작업·대상 검색" value="' + esc(kw) + '"><button class="btn btn-s btn-sm" id="f-go">검색</button></div>' +
+          '<div class="table-wrap"><table><thead><tr><th>일시</th><th>처리자</th><th>작업</th><th>대상</th><th class="hide-m">내용</th></tr></thead><tbody>' + (rows || '<tr><td colspan="5" class="empty">기록이 없습니다.</td></tr>') + "</tbody></table></div>" +
+          (j.items.length === 100 ? '<div class="more"><button class="btn btn-s" id="more">더 보기</button></div>' : "");
+        var go = function () { kw = document.getElementById("f-q").value.trim(); off = 0; load(); };
+        document.getElementById("f-go").onclick = go; document.getElementById("f-q").onkeydown = function (e) { if (e.key === "Enter") go(); };
+        var mb = document.getElementById("more"); if (mb) mb.onclick = function () { off = items.length; load(true); };
+      });
+    }
+    load();
+  }
+
+  // ============================================================ 시스템·데이터
+  function viewSystem(main) {
+    api("system").then(function (j) {
+      if (!j.ok) { main.innerHTML = pageHead("시스템·데이터") + '<div class="callout bad">' + esc(errMsg(j)) + "</div>"; return; }
+      var t = j.tables, p = j.purgeable, pTotal = p.leads + p.reports + p.newsletter + p.stats;
+      var labels = { qna: "질문·경험담", leads: "문의·신청", newsletter: "구독자", factcheck_reports: "팩트체크 요청", content_reviews: "감수 기록", corrections: "정정 이력", audit_log: "활동 기록", stats_daily: "통계(일별 집계)", rate_limits: "접수 속도 제한 기록" };
+      var tr = Object.keys(labels).map(function (k) { return "<tr><td>" + labels[k] + '</td><td class="num">' + (t[k] || 0) + "</td></tr>"; }).join("");
+      var ok = function (b) { return b ? '<span class="tag t-green">정상</span>' : '<span class="tag t-amber">미설정</span>'; };
+      main.innerHTML = pageHead("시스템·데이터", "연결 상태, 데이터 보관, 백업을 관리합니다.") +
+        '<div class="grid g2">' +
+        '<div class="card"><h2>연결 상태</h2><table><tbody><tr><td>데이터베이스 (D1 · DB)</td><td>' + ok(j.db) + "</td></tr><tr><td>데이터 구조 버전</td><td>v" + j.schema_version + ' <span class="muted small">자동 갱신</span></td></tr><tr><td>관리자 키 (ADMIN_KEY)</td><td>' + ok(j.keys.admin) + "</td></tr><tr><td>감수자 키 (REVIEWER_KEY)</td><td>" + ok(j.keys.reviewer) + "</td></tr><tr><td>통계 수집 시작</td><td>" + esc(j.tables.stats_from || "아직 없음") + "</td></tr></tbody></table>" +
+        (j.keys.reviewer ? "" : '<div class="callout" style="margin-top:12px"><b>감수자 계정을 쓰려면</b> Cloudflare Pages → Settings → Variables and Secrets에 <code>REVIEWER_KEY</code>(Secret)를 추가하고 재배포하세요. 감수자는 그 키로 로그인해 답변 검토와 감수 기록만 할 수 있습니다.</div>') + "</div>" +
+        '<div class="card"><h2>데이터 현황</h2><table><tbody>' + tr + "</tbody></table></div>" +
+        '<div class="card"><h2>보유기간 지난 데이터 파기</h2><p class="small muted" style="margin-top:0">개인정보 처리방침의 보유기간에 따라 삭제합니다.</p><table><tbody>' +
+        '<tr><td>처리 완료·보류 후 1년 지난 문의·신청</td><td class="num">' + p.leads + "건</td></tr>" +
+        '<tr><td>처리 끝난 지 1년 지난 팩트체크 요청</td><td class="num">' + p.reports + "건</td></tr>" +
+        '<tr><td>수신거부 후 30일 지난 구독자</td><td class="num">' + p.newsletter + "건</td></tr>" +
+        '<tr><td>400일 지난 일별 통계</td><td class="num">' + p.stats + "건</td></tr></tbody></table>" +
+        '<div style="margin-top:12px;display:flex;justify-content:flex-end"><button class="btn ' + (pTotal ? "btn-d" : "btn-s") + '" id="purge"' + (pTotal ? "" : " disabled") + ">파기 실행" + (pTotal ? " (" + pTotal + "건)" : "") + "</button></div><p class=\"muted small\">한 달에 한 번 실행을 권장합니다.</p></div>" +
+        '<div class="card"><h2>전체 데이터 백업</h2><p class="small" style="margin-top:0">질문·문의·구독자·감수 기록·정정 이력·설정·활동 기록·통계를 JSON 파일 하나로 내려받습니다. 연락처·이메일이 들어 있으니 안전한 곳에 보관하세요.</p><a class="btn btn-p" href="/api/admin/export">백업 파일 내려받기</a><p class="muted small">내려받기 기록이 활동 기록에 남습니다. 한 달에 한 번 권장.</p></div>' +
+        "</div>";
+      var pb = document.getElementById("purge");
+      pb.onclick = function () {
+        confirmBox("보유기간 지난 데이터를 파기할까요?", "<p>" + pTotal + "건이 영구 삭제됩니다. 되돌릴 수 없으므로 먼저 백업을 권장합니다.</p>", "파기 실행", true).then(function (ok) {
+          if (ok) api("purge", { body: {} }).then(function (r) { if (r.ok) { toast("파기했습니다: " + r.detail); viewSystem(main); } else toast(errMsg(r), true); });
+        });
+      };
+    });
+  }
+
+  // ============================================================ 운영 가이드
+  function viewGuide(main) {
+    var bannedRows = [["치료합니다 / 치료 효과 / 완치", "관리에 도움이 될 수 있습니다"], ["약을 끊어도 됩니다 / 줄이세요 / 복용을 중단", "약의 조정은 처방한 의료진과 상의하세요"], ["진단합니다 / ○○입니다(병명 단정)", "○○에 해당할 수 있습니다. 진료 때 확인하세요"], ["발병위험도 ○% / 사망위험도", "사용하지 않음 — 개인 위험도 수치는 제시하지 않습니다"], ["100% / 특효 / 무조건 / 보장", "과장 표현은 삭제합니다"]];
+    main.innerHTML = pageHead("운영 가이드", "바른혈압을 운영하는 사람이 같은 기준으로 판단하도록 정리한 원칙입니다.") +
+      '<div class="card guide" style="max-width:880px">' +
+      "<h2>운영 루틴</h2><table><thead><tr><th>주기</th><th>할 일</th></tr></thead><tbody>" +
+      "<tr><td><b>매일</b></td><td>새 질문 확인 → 답변 작성·게시 (응급 신호가 있는 질문은 우선 처리) · 새 문의 회신</td></tr>" +
+      "<tr><td><b>매주</b></td><td>팩트체크 요청 검토 · 대시보드의 사이트 검색어와 많이 본 페이지를 보고 다음 글 주제 정하기 · 주간 레터 발송</td></tr>" +
+      "<tr><td><b>매월</b></td><td>감수 진행(감수 전 콘텐츠 줄이기, 재감수 도래 처리) · 보유기간 파기 · 전체 데이터 백업</td></tr>" +
+      "<tr><td><b>지침 개정 시</b></td><td>관련 글 갱신 → 정정 이력 기록 → 사이트 공지로 안내</td></tr></tbody></table>" +
+      "<h2>답변 원칙</h2><ul><li><b>판정하지 않습니다.</b> 개인의 수치가 정상인지, 약을 바꿔도 되는지는 답하지 않고 ‘진료 때 무엇을 물어볼지’로 안내합니다.</li><li><b>근거를 붙입니다.</b> 사이트의 관련 글이나 공공기관 자료로 연결합니다. ‘관련 글 링크’ 버튼을 쓰세요.</li><li><b>응급 신호를 먼저 봅니다.</b> 심한 두통·가슴 통증·마비·말 어눌함·시야 이상이 언급되면 ‘응급 신호 안내’ 틀을 첫머리에 넣습니다.</li><li><b>개인정보를 지웁니다.</b> 질문에 이름·연락처·병원명이 있으면 질문 칸에서 지운 뒤 게시합니다(원문은 내부 기록으로만 남습니다).</li><li><b>경험담은 경험으로 표시됩니다.</b> 약 이름·용량을 권하는 내용은 편집하거나 게시하지 않습니다.</li></ul>" +
+      "<h2>표현 기준 (금칙어)</h2><p>답변을 게시할 때 아래 표현이 있으면 확인 창이 뜹니다. 부정문 등 문맥상 문제가 없을 때만 확인 후 게시합니다.</p><table><thead><tr><th>쓰지 않는 표현</th><th>대신 쓰는 표현</th></tr></thead><tbody>" + bannedRows.map(function (r) { return "<tr><td>" + esc(r[0]) + "</td><td>" + esc(r[1]) + "</td></tr>"; }).join("") + "</tbody></table>" +
+      "<h2>감수 원칙</h2><ul><li>실제로 의료진이 내용을 확인한 경우에만 감수 기록을 남깁니다.</li><li>공개 화면에 감수자 이름을 표시하려면 본인의 공개 동의가 있어야 합니다.</li><li>감수 후 12개월이 지나면 ‘재감수 도래’로 표시됩니다. 지침이 바뀌면 기간과 관계없이 다시 감수합니다.</li><li>‘수정 필요’ 결과가 나온 글은 고친 뒤 다시 승인 기록을 남깁니다.</li></ul>" +
+      "<h2>역할</h2><table><thead><tr><th>역할</th><th>할 수 있는 일</th></tr></thead><tbody><tr><td><b>관리자</b></td><td>모든 기능 (게시·삭제·문의·구독자·공지·파기·백업)</td></tr><tr><td><b>감수자</b></td><td>감수 요청된 답변 검토(검토 완료·수정 요청), 콘텐츠 감수 기록, 정정 이력 보기</td></tr></tbody></table>" +
+      "<h2>개인정보 처리</h2><ul><li>혈압 기록은 이용자 브라우저에만 있고 서버에는 없습니다. 관리자도 볼 수 없습니다.</li><li>방문 통계는 페이지 주소·날짜·유입 사이트·도구 이름만 날짜별 합계로 남습니다.</li><li>문의 연락처는 회신 목적에만 쓰고, 처리 후 1년이 지나면 파기합니다.</li><li>CSV·백업 파일은 개인 PC에 오래 두지 말고 필요한 작업 후 지웁니다.</li></ul>" +
+      "<h2>콘텐츠 추가·수정</h2><p>글은 저장소의 생성기(<code>_src/gen</code>)로 만들어집니다. 새 글 추가나 큰 수정은 생성기를 고친 뒤 다시 빌드해 배포합니다. 수정 후에는 이 콘솔의 정정 이력에 기록하세요.</p>" +
+      "</div>";
+  }
+
+  // ============================================================ 시작
+  api("me").then(function (j) {
+    if (j.ok) { S.me = { role: j.role, name: j.name, reviewer_enabled: j.reviewer_enabled }; shell(); loadContent().then(route); api("dashboard").then(function (d) { if (d.ok) setBadges(d.counts); }); }
+    else if (j.error === "not_configured") renderLogin(setupHtml("db"));
+    else renderLogin();
+  }).catch(function () {});
+})();

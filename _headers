@@ -10,3 +10,10 @@
 
 /api/*
   Cache-Control: no-store
+
+/admin/*
+  X-Robots-Tag: noindex, nofollow
+  Cache-Control: no-store
+
+/content-index.json
+  Cache-Control: no-cache

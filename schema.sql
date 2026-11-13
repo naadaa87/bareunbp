@@ -1,7 +1,13 @@
--- 바른혈압 D1 스키마
--- 적용: Cloudflare 대시보드 > Workers & Pages > D1 > (데이터베이스) > Console 에 아래 전체를 붙여넣고 실행
--- 원칙: 혈압 원값(개인 건강정보)은 서버에 저장하지 않는다. 아래 표는 문의·질문·구독만 다룬다.
+-- 바른혈압 D1 스키마 (버전 3)
+--
+-- 이 파일을 직접 실행하지 않아도 됩니다.
+-- D1을 DB라는 이름으로 연결해 두면, 사이트의 API가 첫 요청 때 아래 표를 자동으로 만들고
+-- 이전 버전 데이터베이스에는 필요한 열을 자동으로 추가합니다.
+-- 수동으로 만들고 싶을 때만 Cloudflare 대시보드 > D1 > (데이터베이스) > Console 에 붙여넣어 실행하세요.
+--
+-- 원칙: 혈압 원값(개인 건강정보)은 서버에 저장하지 않는다.
 
+-- 커뮤니티 질문·경험담
 CREATE TABLE IF NOT EXISTS qna (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   created_at TEXT NOT NULL,
@@ -10,12 +16,19 @@ CREATE TABLE IF NOT EXISTS qna (
   question TEXT NOT NULL,
   answer TEXT,
   answered_at TEXT,
-  status TEXT NOT NULL DEFAULT 'pending',   -- pending | published | hidden
+  status TEXT NOT NULL DEFAULT 'pending',   -- pending | draft | review | published | hidden
   ip_hash TEXT,
-  ua TEXT
+  ua TEXT,
+  updated_at TEXT,
+  handled_by TEXT,
+  question_original TEXT,                   -- 운영자가 개인정보를 지우기 전 원문 (비공개)
+  review_note TEXT,
+  reviewed_by TEXT,
+  reviewed_at TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_qna_status ON qna(status, created_at);
 
+-- 기관 협력 문의·기능 사전 신청
 CREATE TABLE IF NOT EXISTS leads (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   created_at TEXT NOT NULL,
@@ -25,37 +38,102 @@ CREATE TABLE IF NOT EXISTS leads (
   contact TEXT NOT NULL,
   message TEXT,
   ip_hash TEXT,
-  ua TEXT
+  ua TEXT,
+  status TEXT DEFAULT 'new',   -- new | contacted | progress | done | hold
+  memo TEXT,
+  updated_at TEXT,
+  handled_by TEXT
 );
 
+-- 주간 혈압 레터 구독자
 CREATE TABLE IF NOT EXISTS newsletter (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   created_at TEXT NOT NULL,
   email TEXT NOT NULL UNIQUE,
   source TEXT,
-  unsubscribed_at TEXT
+  unsubscribed_at TEXT,
+  token TEXT                   -- 수신거부 링크용 임의 값
 );
+CREATE UNIQUE INDEX IF NOT EXISTS idx_newsletter_token ON newsletter(token);
 
+-- 팩트체크 요청
 CREATE TABLE IF NOT EXISTS factcheck_reports (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   created_at TEXT NOT NULL,
   claim TEXT NOT NULL,
   source_url TEXT,
   contact TEXT,
-  status TEXT NOT NULL DEFAULT 'pending',   -- pending | published | rejected
-  ip_hash TEXT
+  status TEXT NOT NULL DEFAULT 'pending',   -- pending | reviewing | published | rejected | duplicate
+  ip_hash TEXT,
+  memo TEXT,
+  published_url TEXT,
+  updated_at TEXT,
+  handled_by TEXT
 );
 
+-- 접수 속도 제한
 CREATE TABLE IF NOT EXISTS rate_limits (
   id TEXT PRIMARY KEY,
-  hits INTEGER NOT NULL DEFAULT 0
+  hits INTEGER NOT NULL DEFAULT 0,
+  bucket INTEGER
 );
 
--- (2단계) 클라우드 기록 동기화 — 별도 동의 절차·보안 설계 완료 후에만 생성할 것
--- CREATE TABLE IF NOT EXISTS bp_sync (
---   id INTEGER PRIMARY KEY AUTOINCREMENT,
---   user_token TEXT NOT NULL,
---   created_at TEXT NOT NULL,
---   payload TEXT NOT NULL,       -- 암호화된 JSON
---   consent_version TEXT NOT NULL
--- );
+-- 콘텐츠 의료진 감수 기록 (승인 + 실명 공개 동의일 때만 공개 화면에 감수자 표시)
+CREATE TABLE IF NOT EXISTS content_reviews (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  path TEXT NOT NULL,
+  title TEXT,
+  reviewer_name TEXT NOT NULL,
+  reviewer_title TEXT,
+  reviewer_org TEXT,
+  reviewed_at TEXT NOT NULL,
+  result TEXT NOT NULL,        -- approved | revise
+  note TEXT,
+  name_public INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  created_by TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_reviews_path ON content_reviews(path, reviewed_at);
+
+-- 정정 이력 (공개, 삭제하지 않음)
+CREATE TABLE IF NOT EXISTS corrections (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  date TEXT NOT NULL,
+  target_path TEXT,
+  target_title TEXT,
+  content TEXT NOT NULL,
+  reason TEXT,
+  created_at TEXT NOT NULL,
+  created_by TEXT,
+  updated_at TEXT
+);
+
+-- 사이트 설정 (공지 띠 등)
+CREATE TABLE IF NOT EXISTS settings (
+  key TEXT PRIMARY KEY,
+  value TEXT,
+  updated_at TEXT,
+  updated_by TEXT
+);
+
+-- 관리자 활동 기록
+CREATE TABLE IF NOT EXISTS audit_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ts TEXT NOT NULL,
+  actor TEXT,
+  role TEXT,
+  action TEXT NOT NULL,
+  target TEXT,
+  detail TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_audit_ts ON audit_log(ts);
+
+-- 익명 이용 통계 (날짜별 합계만. 개인 식별자 없음)
+CREATE TABLE IF NOT EXISTS stats_daily (
+  day TEXT NOT NULL,           -- KST 날짜
+  kind TEXT NOT NULL,          -- pv | pv_total | ref | visitor | event | search
+  key TEXT NOT NULL,
+  n INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (day, kind, key)
+);
+CREATE INDEX IF NOT EXISTS idx_stats_kind ON stats_daily(kind, day);

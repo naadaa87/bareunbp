@@ -12,6 +12,7 @@
     var blob = new Blob([JSON.stringify(out, null, 1)], { type: "application/json" });
     var d = new Date(), name = "바른혈압_백업_" + d.getFullYear() + ("0" + (d.getMonth() + 1)).slice(-2) + ("0" + d.getDate()).slice(-2) + ".json";
     var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    window.bpTrack && bpTrack("backup_export");
     msg("백업 파일을 내려받았습니다. 혈압 기록 " + bp.length + "건이 들어 있습니다.");
   });
   document.getElementById("bk-import").addEventListener("click", function () {
@@ -29,6 +30,7 @@
         if (o.data.bareun_meds_v1 && !get("bareun_meds_v1")) localStorage.setItem("bareun_meds_v1", JSON.stringify(o.data.bareun_meds_v1));
         if (o.data.bareun_challenge_v1 && !get("bareun_challenge_v1")) localStorage.setItem("bareun_challenge_v1", JSON.stringify(o.data.bareun_challenge_v1));
       } catch (e) { msg("저장 공간이 부족해 불러오지 못했습니다."); return; }
+      window.bpTrack && bpTrack("backup_import");
       msg("혈압 기록 " + added + "건을 새로 불러왔습니다. 전체 " + cur.length + "건입니다.");
       document.getElementById("bk-count").textContent = "현재 혈압 기록 " + cur.length + "건";
     };

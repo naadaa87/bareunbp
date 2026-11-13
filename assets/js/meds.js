@@ -4,7 +4,7 @@
   var KEY = "bareun_meds_v1";
   function load() { try { return JSON.parse(localStorage.getItem(KEY) || '{"slots":1,"name":"","days":{}}'); } catch (e) { return { slots: 1, name: "", days: {} }; } }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) {} }
-  var st = load();
+  var st = load(), tracked = false;
   var grid = document.getElementById("md-grid"), nm = document.getElementById("md-name"), slotBtns = document.querySelectorAll("#md-slots button");
   var WD = ["일", "월", "화", "수", "목", "금", "토"];
   function key(d) { return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2); }
@@ -25,6 +25,7 @@
   grid.addEventListener("change", function (e) {
     var c = e.target; if (!c.dataset.k) return;
     st.days[c.dataset.k] = st.days[c.dataset.k] || {}; st.days[c.dataset.k][c.dataset.s] = c.checked; save(); render();
+    if (c.checked && !tracked) { tracked = true; window.bpTrack && bpTrack("meds_check"); }
   });
   nm.addEventListener("change", function () { st.name = nm.value.trim(); save(); });
   slotBtns.forEach(function (b) { b.addEventListener("click", function () { st.slots = +b.dataset.v; save(); render(); }); });

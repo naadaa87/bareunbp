@@ -24,6 +24,7 @@
     form.querySelectorAll(".quality input").forEach(function (c) { q[c.name] = c.checked; });
     var when = form.when.value ? new Date(form.when.value) : new Date();
     BPStore.add({ ts: when.toISOString(), sys: sys, dia: dia, pulse: isNaN(pulse) ? null : pulse, slot: slot, memo: form.memo.value.trim(), quality: q });
+    window.bpTrack && bpTrack("record_saved");
     form.sys.value = ""; form.dia.value = ""; form.pulse.value = ""; form.memo.value = ""; form.when.value = "";
     form.querySelectorAll(".quality input").forEach(function (c) { c.checked = false; });
     bpToast("기록했습니다.");
@@ -42,6 +43,7 @@
     if (confirm("이 기기에 저장된 모든 혈압 기록을 삭제합니다. 되돌릴 수 없습니다.")) { BPStore.clear(); render(); }
   });
   document.getElementById("btn-csv").addEventListener("click", function () {
+    window.bpTrack && bpTrack("csv_export");
     if (BPStore.count() === 0) { bpToast("내보낼 기록이 없습니다."); return; }
     var blob = new Blob([BPStore.exportCSV()], { type: "text/csv;charset=utf-8" });
     var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "바른혈압_기록.csv"; a.click();

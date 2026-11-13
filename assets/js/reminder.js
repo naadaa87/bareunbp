@@ -25,7 +25,7 @@
     var ics = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Bareun BP//Reminder//KO", "CALSCALE:GREGORIAN", "METHOD:PUBLISH",
       "BEGIN:VTIMEZONE", "TZID:Asia/Seoul", "BEGIN:STANDARD", "DTSTART:19700101T000000", "TZOFFSETFROM:+0900", "TZOFFSETTO:+0900", "TZNAME:KST", "END:STANDARD", "END:VTIMEZONE"].concat(evs).concat(["END:VCALENDAR"]).join("\r\n");
     var blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
-    var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "바른혈압_측정알림.ics"; document.body.appendChild(a); a.click(); a.remove();
+    var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "바른혈압_측정알림.ics"; window.bpTrack && bpTrack("reminder_ics"); document.body.appendChild(a); a.click(); a.remove();
     bpToast("캘린더 파일을 내려받았습니다. 파일을 열어 추가하세요.");
   });
 })();

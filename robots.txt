@@ -2,9 +2,13 @@ User-agent: *
 Allow: /
 Disallow: /api/
 Disallow: /search/
+Disallow: /admin/
+Disallow: /_src/
 
 User-agent: Yeti
 Allow: /
 Disallow: /api/
+Disallow: /admin/
+Disallow: /_src/
 
 Sitemap: https://bareunbp.com/sitemap.xml

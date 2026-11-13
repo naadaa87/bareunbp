@@ -6,6 +6,7 @@
   var sheet = document.getElementById("sheet");
   var empty = document.getElementById("report-empty");
 
+  var viewed = false;
   function pad(n) { return (n < 10 ? "0" : "") + n; }
   function fmt(d) { return d.getFullYear() + "." + pad(d.getMonth() + 1) + "." + pad(d.getDate()); }
 
@@ -14,6 +15,7 @@
     var list = BPStore.recentDays(days);
     if (!list.length) { empty.style.display = "block"; sheet.style.display = "none"; return; }
     empty.style.display = "none"; sheet.style.display = "block";
+    if (!viewed) { viewed = true; window.bpTrack && bpTrack("report_view"); }
     var st = BPStore.stats(list);
     var first = new Date(list[0].ts), last = new Date(list[list.length - 1].ts);
     document.getElementById("r-period").textContent = fmt(first) + " ~ " + fmt(last) + " (" + Object.keys(BPStore.byDay(list)).length + "일 · " + st.n + "회)";
@@ -51,6 +53,6 @@
   function esc(s) { return s.replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
 
   sel.addEventListener("change", build);
-  document.getElementById("btn-print").addEventListener("click", function () { window.print(); });
+  document.getElementById("btn-print").addEventListener("click", function () { window.bpTrack && bpTrack("report_print"); window.print(); });
   build();
 })();

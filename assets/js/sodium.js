@@ -36,6 +36,7 @@
   list.addEventListener("click", function (e) {
     var b = e.target.closest("button"); if (!b) return;
     items.push({ n: b.dataset.n, mg: parseInt(b.dataset.mg, 10), half: false }); save(items); render();
+    if (!used) { used = true; window.bpTrack && bpTrack("sodium_use"); }
     if (window.bpToast) bpToast(b.dataset.n + " 추가");
   });
   tbody.addEventListener("click", function (e) {
@@ -51,6 +52,7 @@
     items.push({ n: n, mg: mg, half: false }); save(items); render(); e.target.reset();
   });
   document.getElementById("sd-clear").addEventListener("click", function () { items = []; save(items); render(); });
+  var used = false;
   q.addEventListener("input", renderList);
   renderList(); render();
 })();

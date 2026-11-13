@@ -22,7 +22,7 @@
     btn.addEventListener("click", function () {
       st[id] = st[id] || { dates: [] };
       if (st[id].dates.indexOf(today()) === -1) st[id].dates.push(today());
-      save(st); render();
+      save(st); render(); window.bpTrack && bpTrack("challenge_done");
       if (st[id].dates.length >= days && window.bpToast) bpToast("챌린지를 마쳤습니다. 경험을 커뮤니티에 나눠 주세요.");
     });
     card.querySelector(".ch-reset").addEventListener("click", function () {

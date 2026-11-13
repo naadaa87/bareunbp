@@ -29,7 +29,7 @@
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
-<link rel="stylesheet" href="/assets/css/site.css">
+<link rel="stylesheet" href="/assets/css/site.css?v=208e3782">
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "WebApplication", "name": "나트륨 계산기", "applicationCategory": "HealthApplication", "operatingSystem": "Web", "url": "https://bareunbp.com/tools/sodium/", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "KRW"}}</script>
 </head>
 <body>
@@ -69,7 +69,7 @@
 <p id="sd-msg" class="fine" style="margin:8px 0 0">WHO 하루 권고 상한 2,000mg(소금 약 5g) 대비 비율을 표시합니다.</p>
 </div>
 <div class="log" style="margin-top:16px"><table><thead><tr><th>메뉴</th><th>나트륨</th><th>국물</th><th></th></tr></thead><tbody id="sd-today"></tbody></table></div>
-<div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap"><button class="btn btn--ghost" id="sd-clear" type="button">오늘 목록 비우기</button><a class="btn btn--secondary" href="/food/sodium-table.html">메뉴별 나트륨표</a></div>
+<div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap"><button class="btn btn--ghost" id="sd-clear" type="button">오늘 목록 비우기</button><a class="btn btn--secondary" href="/food/sodium-table">메뉴별 나트륨표</a></div>
 <div class="tool-note">'국물 남김'을 체크하면 해당 메뉴를 절반으로 계산합니다. 실제로 줄어드는 양은 메뉴와 남긴 양에 따라 다르며, 이 값은 습관을 비교하기 위한 대략치입니다. 오늘 목록은 이 브라우저에만 저장되고 날짜가 바뀌면 새로 시작합니다.</div>
 </div>
 </div>
@@ -90,9 +90,9 @@
 <p>운영 주식회사 블랭크 · 문의 <a href="mailto:spaceblank0100@gmail.com">spaceblank0100@gmail.com</a></p>
 </div>
 <div><h4>시작하기</h4><ul><li><a href="/measure/">바르게 재기</a></li><li><a href="/check7/">7일 혈압 기록</a></li><li><a href="/report/">진료 준비 리포트</a></li><li><a href="/tools/">도구 모음</a></li><li><a href="/tools/log-sheet/">인쇄용 혈압 기록지</a></li><li><a href="/family/">가족과 함께 관리</a></li></ul></div>
-<div><h4>알아보기</h4><ul><li><a href="/info/">건강정보</a></li><li><a href="/info/reading-numbers.html">혈압 정상수치 표</a></li><li><a href="/food/">음식·식단</a></li><li><a href="/food/sodium-table.html">외식 나트륨 함량표</a></li><li><a href="/food/recipes/">저염 레시피</a></li><li><a href="/factcheck/">팩트체크</a></li><li><a href="/glossary/">고혈압 용어사전</a></li><li><a href="/faq/">자주 묻는 질문</a></li></ul></div>
+<div><h4>알아보기</h4><ul><li><a href="/info/">건강정보</a></li><li><a href="/info/reading-numbers">혈압 정상수치 표</a></li><li><a href="/food/">음식·식단</a></li><li><a href="/food/sodium-table">외식 나트륨 함량표</a></li><li><a href="/food/recipes/">저염 레시피</a></li><li><a href="/factcheck/">팩트체크</a></li><li><a href="/glossary/">고혈압 용어사전</a></li><li><a href="/faq/">자주 묻는 질문</a></li></ul></div>
 <div><h4>함께하기</h4><ul><li><a href="/community/">질문과 답변</a></li><li><a href="/community/challenges/">혈압 관리 챌린지</a></li><li><a href="/devices/">혈압계 가이드</a></li><li><a href="/products/">관리용품 가이드</a></li><li><a href="/clinic/">진료 준비·병의원</a></li><li><a href="/partners/">기관 협력</a></li></ul></div>
-<div><h4>바른혈압</h4><ul><li><a href="/about/">소개·운영 원칙</a></li><li><a href="/policy/editorial.html">편집·감수·정정 정책</a></li><li><a href="/policy/corrections.html">정정 이력</a></li><li><a href="/policy/privacy.html">개인정보 처리방침</a></li><li><a href="/policy/terms.html">이용약관</a></li><li><a href="/rss.xml">RSS 구독</a></li></ul></div>
+<div><h4>바른혈압</h4><ul><li><a href="/about/">소개·운영 원칙</a></li><li><a href="/policy/editorial">편집·감수·정정 정책</a></li><li><a href="/policy/corrections">정정 이력</a></li><li><a href="/policy/privacy">개인정보 처리방침</a></li><li><a href="/policy/terms">이용약관</a></li><li><a href="/rss.xml">RSS 구독</a></li></ul></div>
 </div>
 <div class="legal">
 <p>혈압 기록은 기본적으로 이용자의 브라우저에만 저장되며 서버로 전송되지 않습니다. 본 사이트의 콘텐츠는 대한고혈압학회 진료지침, 질병관리청·보건복지부 등 공공기관 자료를 근거로 작성되며, 출처와 최종 검토일을 각 글에 표기합니다.</p>
@@ -100,8 +100,8 @@
 </div>
 </div>
 </footer>
-<script src="/assets/js/bp-store.js"></script>
-<script src="/assets/js/site.js"></script>
-<script src="/assets/js/sodium.js"></script>
+<script src="/assets/js/bp-store.js?v=4c0f078c"></script>
+<script src="/assets/js/site.js?v=98128aed"></script>
+<script src="/assets/js/sodium.js?v=841e25e4"></script>
 </body>
 </html>

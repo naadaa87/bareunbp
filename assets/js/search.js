@@ -20,10 +20,11 @@
   fetch("/search-index.json").then(function (r) { return r.json(); }).then(function (j) {
     idx = j;
     var q = new URLSearchParams(location.search).get("q") || "";
-    input.value = q; if (q) run(q);
+    input.value = q; if (q) { run(q); window.bpTrack && bpTrack("search", { q: q }); }
   });
   form.addEventListener("submit", function (e) {
     e.preventDefault(); if (!idx) return;
     history.replaceState(null, "", "?q=" + encodeURIComponent(input.value)); run(input.value);
+    if (input.value.trim()) window.bpTrack && bpTrack("search", { q: input.value.trim() });
   });
 })();

@@ -19,7 +19,7 @@
   function clearInputs() { $("tm-sys").value = ""; $("tm-dia").value = ""; $("tm-pulse").value = ""; }
   go.addEventListener("click", function () {
     if (phase === "ready") {
-      phase = "rest"; step.textContent = "1단계 · 안정"; guide.textContent = "말하지 않고 편안히 앉아 기다립니다. 휴대폰도 잠시 내려놓으세요.";
+      window.bpTrack && bpTrack("timer_start"); phase = "rest"; step.textContent = "1단계 · 안정"; guide.textContent = "말하지 않고 편안히 앉아 기다립니다. 휴대폰도 잠시 내려놓으세요.";
       go.hidden = true;
       count(300, function () { phase = "m1"; step.textContent = "2단계 · 1회 측정"; clock.textContent = "측정"; guide.textContent = "지금 혈압계를 작동하세요. 재는 동안 말하거나 움직이지 않습니다. 결과를 입력하세요."; entry.hidden = false; go.hidden = false; go.textContent = "1회 값 저장"; $("tm-sys").focus(); });
     } else if (phase === "m1") {
@@ -35,7 +35,7 @@
       entry.hidden = true; step.textContent = "완료"; clock.textContent = as + "/" + ad;
       guide.textContent = "두 번의 평균입니다. 두 값 모두 " + (slot === "am" ? "아침" : "저녁") + " 기록으로 저장했습니다.";
       result.hidden = false; result.innerHTML = '1회 ' + first.sys + '/' + first.dia + ' · 2회 ' + second.sys + '/' + second.dia + ' — <a href="/check7/">7일 기록에서 보기</a>';
-      phase = "done"; go.textContent = "다시 시작"; 
+      window.bpTrack && bpTrack("timer_done"); phase = "done"; go.textContent = "다시 시작"; 
     } else { location.reload(); }
   });
 })();
