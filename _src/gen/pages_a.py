@@ -23,7 +23,7 @@ def home():
     ]
     jt = "".join(f'<a href="{h}"><div><b>{t}</b><span>{d}</span></div><span class="go">{g}</span></a>' for t, d, h, g in jtbd)
 
-    latest = "".join(f'<li><a href="/info/{a["slug"]}.html"><span class="cat">{CAT_NAME[a["cat"]]}</span><span><b>{a["title"]}</b><span>{a["summary"]}</span></span><span class="date">{REVIEW_DATE}</span></a></li>' for a in [x for x in ARTICLES if x['slug'] in ('reading-numbers','first-high-reading','home-measurement','lifestyle-effects','symptoms')])
+    latest = "".join(f'<li><a href="/info/{a["slug"]}.html"><span class="cat">{CAT_NAME[a["cat"]]}</span><span><b>{a["title"]}</b><span>{a["summary"]}</span></span><span class="date">{a.get("date", REVIEW_DATE)}</span></a></li>' for a in [x for x in ARTICLES if x['slug'] in ('reading-numbers','first-high-reading','home-measurement','lifestyle-effects','stroke-signs','taking-meds')])
     fcs = "".join(f'<li><a href="/factcheck/{f["slug"]}.html"><span><q>{f["claim"]}</q><span>{f["summary"]}</span></span><span class="verdict {VERDICTS[f["verdict"]][1]}">{VERDICTS[f["verdict"]][0]}</span></a></li>' for f in FACTCHECKS[:4])
 
     body = f"""
@@ -56,6 +56,18 @@ def home():
 <div class="wrap">
 <div class="section-head"><h2>정보를 읽고 끝나지 않도록, 네 가지로 연결합니다</h2><p>고혈압 정보는 이미 많습니다. 부족한 것은 '올바르게 재고 → 이해하고 → 기록하고 → 진료에 연결하는' 흐름입니다.</p></div>
 <div class="pillars">{pil}</div>
+</div>
+</section>
+
+<section class="section section--tight">
+<div class="wrap">
+<div class="stat-grid">
+<div class="stat"><b>1,361<small>만 명</small></b><span>우리나라 20세 이상 고혈압 유병자. 성인 세 명 중 한 명</span></div>
+<div class="stat"><b>4<small>명 중 1명</small></b><span>고혈압이 있는데도 자신의 상태를 모르는 사람</span></div>
+<div class="stat"><b>56<small>%</small></b><span>혈압이 목표 범위로 조절되는 사람의 비율</span></div>
+<div class="stat"><b>77<small>%</small></b><span>치료를 받는 사람 가운데 조절되는 비율</span></div>
+</div>
+<p class="fine" style="margin:12px 0 0">대한고혈압학회 팩트시트 2026(2024년 자료). 증상이 없어 모르고 지나가지만, 알고 치료하면 대부분 조절됩니다. <a href="/stats/">숫자로 보는 고혈압</a></p>
 </div>
 </section>
 
@@ -138,7 +150,10 @@ def home():
 <div class="grid grid--3">
 <a class="pillar" href="/devices/"><div class="ico">{ICONS["device"]}</div><h3>혈압계 가이드</h3><p>상완형·손목형·스마트워치·커프리스. 순위 대신 검증 수준과 조건을 비교합니다.</p><span class="more">유형별 비교</span></a>
 <a class="pillar" href="/family/"><div class="ico">{ICONS["family"]}</div><h3>가족과 함께</h3><p>부모님 혈압을 자녀가 함께 챙기는 방법. 리포트 공유부터 시작합니다.</p><span class="more">가족 가이드</span></a>
-<a class="pillar" href="/community/"><div class="ico">{ICONS["chat"]}</div><h3>커뮤니티</h3><p>질문과 답변, 7일 재기·국물 남기기·걷기 챌린지, 경험 나누기.</p><span class="more">함께하기</span></a>
+<a class="pillar" href="/community/board/"><div class="ico">{ICONS["board"]}</div><h3>자유게시판</h3><p>혈압을 관리하는 사람들이 경험과 정보를 나누는 곳. 질문과 답변, 챌린지도 함께.</p><span class="more">이야기 나누기</span></a>
+<a class="pillar" href="/videos/"><div class="ico">{ICONS["video"]}</div><h3>영상으로 배우기</h3><p>학회와 대학병원이 만든 영상 30편. 혈압 재는 법부터 뇌졸중 증상까지.</p><span class="more">영상 보기</span></a>
+<a class="pillar" href="/library/"><div class="ico">{ICONS["library"]}</div><h3>공신력 있는 자료실</h3><p>학회·공공기관·국제기구의 자료와 검증된 혈압계 목록을 한곳에.</p><span class="more">자료 찾기</span></a>
+<a class="pillar" href="/news/"><div class="ico">{ICONS["chart"]}</div><h3>고혈압 소식과 통계</h3><p>팩트시트, 국민건강영양조사, 지침 변화를 원자료 기준으로 정리합니다.</p><span class="more">소식 보기</span></a>
 </div>
 </div>
 </section>
@@ -441,15 +456,15 @@ def factcheck_index():
 def factcheck_page(f):
     n, c, d = VERDICTS[f["verdict"]]
     cond = f'<p style="font-size:.92rem;color:var(--muted)"><b style="color:var(--navy)">조건</b> — {f["conditions"]}</p>' if f.get("conditions") else ""
-    ld = {"@context": "https://schema.org", "@type": "ClaimReview", "url": f"{SITE}/factcheck/{f['slug']}.html", "claimReviewed": f["claim"], "datePublished": REVIEW_DATE, "author": {"@type": "Organization", "name": BRAND}, "reviewRating": {"@type": "Rating", "alternateName": n, "bestRating": 5, "worstRating": 1, "ratingValue": {"ok": 5, "partial": 3, "insuff": 2, "contra": 1, "doctor": 3}[f["verdict"]]}, "itemReviewed": {"@type": "Claim", "text": f["claim"]}}
+    ld = {"@context": "https://schema.org", "@type": "ClaimReview", "url": f"{SITE}/factcheck/{f['slug']}.html", "claimReviewed": f["claim"], "datePublished": f.get("date", REVIEW_DATE), "author": {"@type": "Organization", "name": BRAND}, "reviewRating": {"@type": "Rating", "alternateName": n, "bestRating": 5, "worstRating": 1, "ratingValue": {"ok": 5, "partial": 3, "insuff": 2, "contra": 1, "doctor": 3}[f["verdict"]]}, "itemReviewed": {"@type": "Claim", "text": f["claim"]}}
     body = page_head(f'“{f["claim"]}”', f["summary"], [("/", "홈"), ("/factcheck/", "팩트체크"), (None, "판정")], f"/factcheck/{f['slug']}.html") + f"""
 <section class="section section--tight">
 <div class="wrap">
 <article class="article">
-<div class="article-meta"><span>작성 바른혈압 편집팀</span><span>{review_badge()}</span><span>최종 검토 {REVIEW_DATE}</span></div>
+<div class="article-meta"><span>작성 바른혈압 편집팀</span><span>{review_badge()}</span><span>최종 검토 {f.get("date", REVIEW_DATE)}</span></div>
 <div class="verdict-hero"><span class="verdict {c}">{n}</span><p>{d}</p></div>
 {cond}
-{evidence("진료지침 · 공공기관", "높음" if f["verdict"] in ("ok", "contra") else "중간", "일반 성인")}
+{evidence("진료지침 · 공공기관", "높음" if f["verdict"] in ("ok", "contra") else "중간", "일반 성인", date=f.get("date", REVIEW_DATE))}
 {f["body"]}
 <h2>출처</h2>
 {sources(f["srcs"])}

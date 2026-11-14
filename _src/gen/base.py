@@ -7,6 +7,7 @@ BRAND = "바른혈압"
 TAGLINE = "올바른 정보, 건강한 오늘"
 REVIEW_DATE = "2026-11-07"
 FIRST_PUBLISHED = "2026-09-04"
+NEW_DATE = "2026-11-14"      # 3차 확충분의 작성·검토일
 # 검색엔진 소유확인 코드 — 발급받으면 따옴표 안에 넣고 다시 빌드 (README 참고)
 NAVER_VERIFY = ""
 GOOGLE_VERIFY = ""
@@ -43,6 +44,11 @@ ICONS = {
     "flag": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/></svg>',
     "print": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><rect x="6" y="14" width="12" height="8"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/></svg>',
     "leaf": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/><path d="M2 21c0-3 1.85-5.36 5.08-6"/></svg>',
+    "user": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>',
+    "video": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m10 9 5 3-5 3z"/></svg>',
+    "library": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v16M9 4v16M14 5l5 15"/><path d="M4 8h5M4 16h5"/></svg>',
+    "chart": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V4M4 20h16"/><path d="M8 16v-5M12 16V8M16 16v-8"/></svg>',
+    "board": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>',
     "device": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="3"/><path d="M9 8h6M9 12h6M12 16h.01"/></svg>',
 }
 
@@ -142,7 +148,7 @@ def header():
 <nav class="nav" aria-label="주요 메뉴">{items}</nav>
 <div class="header-cta">
 <a class="icon-btn" href="/search/" aria-label="사이트 검색">{ICONS['search']}</a>
-<a class="btn btn--secondary btn--sm" href="/report/">진료 리포트</a>
+<a class="user-link" href="/account/login/" data-user-link aria-label="로그인">{ICONS['user']}<span>로그인</span></a>
 <a class="btn btn--primary btn--sm" href="/check7/">7일 기록 시작</a>
 <button class="menu-btn" aria-label="메뉴 열기" aria-expanded="false"><span></span></button>
 </div>
@@ -164,12 +170,12 @@ def footer(extra_js=""):
 <p>운영 주식회사 블랭크 · 문의 <a href="mailto:spaceblank0100@gmail.com">spaceblank0100@gmail.com</a></p>
 </div>
 <div><h4>시작하기</h4><ul><li><a href="/measure/">바르게 재기</a></li><li><a href="/check7/">7일 혈압 기록</a></li><li><a href="/report/">진료 준비 리포트</a></li><li><a href="/tools/">도구 모음</a></li><li><a href="/tools/log-sheet/">인쇄용 혈압 기록지</a></li><li><a href="/family/">가족과 함께 관리</a></li></ul></div>
-<div><h4>알아보기</h4><ul><li><a href="/info/">건강정보</a></li><li><a href="/info/reading-numbers.html">혈압 정상수치 표</a></li><li><a href="/food/">음식·식단</a></li><li><a href="/food/sodium-table.html">외식 나트륨 함량표</a></li><li><a href="/food/recipes/">저염 레시피</a></li><li><a href="/factcheck/">팩트체크</a></li><li><a href="/glossary/">고혈압 용어사전</a></li><li><a href="/faq/">자주 묻는 질문</a></li></ul></div>
-<div><h4>함께하기</h4><ul><li><a href="/community/">질문과 답변</a></li><li><a href="/community/challenges/">혈압 관리 챌린지</a></li><li><a href="/devices/">혈압계 가이드</a></li><li><a href="/products/">관리용품 가이드</a></li><li><a href="/clinic/">진료 준비·병의원</a></li><li><a href="/partners/">기관 협력</a></li></ul></div>
-<div><h4>바른혈압</h4><ul><li><a href="/about/">소개·운영 원칙</a></li><li><a href="/policy/editorial.html">편집·감수·정정 정책</a></li><li><a href="/policy/corrections.html">정정 이력</a></li><li><a href="/policy/privacy.html">개인정보 처리방침</a></li><li><a href="/policy/terms.html">이용약관</a></li><li><a href="/rss.xml">RSS 구독</a></li></ul></div>
+<div><h4>알아보기</h4><ul><li><a href="/info/">건강정보</a></li><li><a href="/info/reading-numbers.html">혈압 정상수치 표</a></li><li><a href="/food/">음식·식단</a></li><li><a href="/food/sodium-table.html">외식 나트륨 함량표</a></li><li><a href="/food/recipes/">저염 레시피</a></li><li><a href="/factcheck/">팩트체크</a></li><li><a href="/videos/">영상으로 배우기</a></li><li><a href="/library/">공신력 있는 자료실</a></li><li><a href="/stats/">숫자로 보는 고혈압</a></li><li><a href="/glossary/">고혈압 용어사전</a></li><li><a href="/faq/">자주 묻는 질문</a></li></ul></div>
+<div><h4>함께하기</h4><ul><li><a href="/community/board/">자유게시판</a></li><li><a href="/community/">질문과 답변</a></li><li><a href="/community/challenges/">혈압 관리 챌린지</a></li><li><a href="/devices/">혈압계 가이드</a></li><li><a href="/products/">관리용품 가이드</a></li><li><a href="/clinic/">진료 준비·병의원</a></li><li><a href="/partners/">기관 협력</a></li><li><a href="/my/">마이페이지·저장한 글</a></li><li><a href="/account/signup/">회원가입</a></li></ul></div>
+<div><h4>바른혈압</h4><ul><li><a href="/about/">소개·운영 원칙</a></li><li><a href="/policy/editorial.html">편집·감수·정정 정책</a></li><li><a href="/policy/corrections.html">정정 이력</a></li><li><a href="/policy/community.html">게시판 운영 원칙</a></li><li><a href="/policy/privacy.html">개인정보 처리방침</a></li><li><a href="/policy/terms.html">이용약관</a></li><li><a href="/rss.xml">RSS 구독</a></li></ul></div>
 </div>
 <div class="legal">
-<p>혈압 기록은 기본적으로 이용자의 브라우저에만 저장되며 서버로 전송되지 않습니다. 본 사이트의 콘텐츠는 대한고혈압학회 진료지침, 질병관리청·보건복지부 등 공공기관 자료를 근거로 작성되며, 출처와 최종 검토일을 각 글에 표기합니다.</p>
+<p>혈압 기록은 이용자의 브라우저에만 저장되며 서버로 전송되지 않습니다. 회원으로 가입해도 혈압 기록은 계정에 저장되지 않습니다. 본 사이트의 콘텐츠는 대한고혈압학회 진료지침, 질병관리청·보건복지부 등 공공기관 자료를 근거로 작성되며, 출처와 최종 검토일을 각 글에 표기합니다.</p>
 <p>© 2026 주식회사 블랭크. All rights reserved.</p>
 </div>
 </div>

@@ -9,10 +9,15 @@
  * 데이터베이스 표는 첫 요청 때 자동으로 만들어지고, 새 버전에서 필요한 열도 자동으로 추가된다.
  * (schema.sql을 콘솔에 붙여넣는 과정은 선택 사항)
  *
- * 원칙: 혈압 값 등 개인 건강정보는 서버에 저장하지 않는다. 통계는 경로·날짜·이벤트 이름만 집계한다.
+ * 원칙
+ *   - 혈압 값 등 개인 건강정보는 서버에 저장하지 않는다. 회원 계정에도 연결하지 않는다.
+ *   - 통계는 경로·날짜·이벤트 이름만 집계한다.
+ *   - 회원 비밀번호는 브라우저에서 PBKDF2로 늘린 값만 받아, 서버에서 회원별 소금값으로 한 번 더 해시해 저장한다.
  */
 
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
+const USER_COOKIE = "bp_user";
+const USER_SESSION_DAYS = 30;
 const JSON_HEADERS = { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" };
 const SESSION_HOURS = 12;
 const COOKIE = "bp_admin";
@@ -78,6 +83,20 @@ const TABLES = [
   `CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT, updated_at TEXT, updated_by TEXT)`,
   `CREATE TABLE IF NOT EXISTS audit_log (id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL, actor TEXT, role TEXT, action TEXT NOT NULL, target TEXT, detail TEXT)`,
   `CREATE TABLE IF NOT EXISTS stats_daily (day TEXT NOT NULL, kind TEXT NOT NULL, key TEXT NOT NULL, n INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (day, kind, key))`,
+  // ---- 회원·저장·자유게시판 (v4)
+  `CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL UNIQUE, nickname TEXT, email TEXT, pw_hash TEXT, pw_salt TEXT, pw_ver INTEGER NOT NULL DEFAULT 1, recovery_hash TEXT, created_at TEXT NOT NULL, last_login_at TEXT, status TEXT NOT NULL DEFAULT 'active', session_ver INTEGER NOT NULL DEFAULT 1, must_change_pw INTEGER NOT NULL DEFAULT 0, agreed_at TEXT, memo TEXT, updated_at TEXT, handled_by TEXT)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS idx_users_nickname ON users(nickname)`,
+  `CREATE TABLE IF NOT EXISTS app_secrets (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS bookmarks (user_id INTEGER NOT NULL, key TEXT NOT NULL, title TEXT, created_at TEXT NOT NULL, PRIMARY KEY (user_id, key))`,
+  `CREATE TABLE IF NOT EXISTS posts (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, author_label TEXT, category TEXT NOT NULL, title TEXT NOT NULL, body TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT, status TEXT NOT NULL DEFAULT 'visible', pinned INTEGER NOT NULL DEFAULT 0, views INTEGER NOT NULL DEFAULT 0, like_count INTEGER NOT NULL DEFAULT 0, comment_count INTEGER NOT NULL DEFAULT 0, report_count INTEGER NOT NULL DEFAULT 0, hidden_reason TEXT, handled_by TEXT, ip_hash TEXT)`,
+  `CREATE INDEX IF NOT EXISTS idx_posts_list ON posts(status, pinned, id)`,
+  `CREATE INDEX IF NOT EXISTS idx_posts_user ON posts(user_id)`,
+  `CREATE TABLE IF NOT EXISTS comments (id INTEGER PRIMARY KEY AUTOINCREMENT, post_id INTEGER NOT NULL, user_id INTEGER, body TEXT NOT NULL, created_at TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'visible', report_count INTEGER NOT NULL DEFAULT 0, hidden_reason TEXT, handled_by TEXT, ip_hash TEXT)`,
+  `CREATE INDEX IF NOT EXISTS idx_comments_post ON comments(post_id, id)`,
+  `CREATE INDEX IF NOT EXISTS idx_comments_user ON comments(user_id)`,
+  `CREATE TABLE IF NOT EXISTS post_likes (post_id INTEGER NOT NULL, user_id INTEGER NOT NULL, created_at TEXT NOT NULL, PRIMARY KEY (post_id, user_id))`,
+  `CREATE TABLE IF NOT EXISTS ugc_reports (id INTEGER PRIMARY KEY AUTOINCREMENT, target_type TEXT NOT NULL, target_id INTEGER NOT NULL, user_id INTEGER NOT NULL, reason TEXT NOT NULL, detail TEXT, created_at TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'open', handled_by TEXT, handled_at TEXT, UNIQUE (target_type, target_id, user_id))`,
+  `CREATE TABLE IF NOT EXISTS videos (id INTEGER PRIMARY KEY AUTOINCREMENT, youtube_id TEXT NOT NULL, title TEXT NOT NULL, source TEXT, category TEXT, note TEXT, status TEXT NOT NULL DEFAULT 'visible', sort INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, created_by TEXT)`,
   `CREATE INDEX IF NOT EXISTS idx_qna_status ON qna(status, created_at)`,
   `CREATE INDEX IF NOT EXISTS idx_reviews_path ON content_reviews(path, reviewed_at)`,
   `CREATE INDEX IF NOT EXISTS idx_audit_ts ON audit_log(ts)`,
@@ -115,7 +134,7 @@ async function ensureSchema(env) {
 async function rateLimited(env, ip, key, limit, windowMin = 1) {
   try {
     const bucket = Math.floor(Date.now() / (60000 * windowMin));
-    const id = `${key}:${ip}:${windowMin}:${bucket}`;
+    const id = `${key}:${await sha(String(ip))}:${windowMin}:${bucket}`;
     await env.DB.prepare("INSERT INTO rate_limits (id, hits, bucket) VALUES (?1, 1, ?2) ON CONFLICT(id) DO UPDATE SET hits = hits + 1").bind(id, Math.floor(Date.now() / 60000)).run();
     const row = await env.DB.prepare("SELECT hits FROM rate_limits WHERE id = ?1").bind(id).first();
     return row && row.hits > limit;
@@ -195,6 +214,9 @@ export async function onRequest(context) {
 
   // ---------------------------------------------- 관리자
   if (path === "admin" || path.startsWith("admin/")) return admin(context, path.slice(6), method, ip, url);
+
+  // ---------------------------------------------- 회원·저장·자유게시판·영상
+  if (/^(auth|bookmarks|board)(\/|$)/.test(path) || path === "videos") return member(context, path, method, ip, url);
 
   // ---------------------------------------------- 공개 GET
   if (method === "GET") {
@@ -294,7 +316,7 @@ export async function onRequest(context) {
 }
 
 // ------------------------------------------------------------------ 통계 기록
-const EVENTS = new Set(["record_saved", "quick_entry", "csv_export", "report_view", "report_print", "timer_start", "timer_done", "sodium_use", "meds_check", "reminder_ics", "backup_export", "backup_import", "challenge_done", "form_qna", "form_lead", "form_newsletter", "form_report", "search", "logsheet_print", "recipe_print", "mealplan_print"]);
+const EVENTS = new Set(["share", "video_play", "record_saved", "quick_entry", "csv_export", "report_view", "report_print", "timer_start", "timer_done", "sodium_use", "meds_check", "reminder_ics", "backup_export", "backup_import", "challenge_done", "form_qna", "form_lead", "form_newsletter", "form_report", "search", "logsheet_print", "recipe_print", "mealplan_print"]);
 async function recordHit(env, b, ownHost) {
   const day = kstDay();
   const stmts = [];
@@ -399,7 +421,14 @@ async function admin(context, sub, method, ip, url) {
           (SELECT COUNT(*) FROM newsletter WHERE unsubscribed_at IS NULL) AS nl_active,
           (SELECT COUNT(*) FROM newsletter WHERE unsubscribed_at IS NULL AND created_at >= ?1) AS nl_week,
           (SELECT COUNT(*) FROM factcheck_reports WHERE status IN ('pending','reviewing')) AS reports_open,
-          (SELECT COUNT(*) FROM corrections) AS corrections`).bind(daysAgoIso(7)),
+          (SELECT COUNT(*) FROM corrections) AS corrections,
+          (SELECT COUNT(*) FROM users WHERE status != 'deleted') AS members,
+          (SELECT COUNT(*) FROM users WHERE status != 'deleted' AND created_at >= ?1) AS members_week,
+          (SELECT COUNT(*) FROM posts WHERE status = 'visible') AS posts,
+          (SELECT COUNT(*) FROM posts WHERE status != 'deleted' AND created_at >= ?1) AS posts_week,
+          (SELECT COUNT(*) FROM comments WHERE status != 'deleted' AND created_at >= ?1) AS comments_week,
+          (SELECT COUNT(*) FROM posts WHERE status = 'hidden') + (SELECT COUNT(*) FROM comments WHERE status = 'hidden') AS ugc_hidden,
+          (SELECT COUNT(DISTINCT target_type || ':' || target_id) FROM ugc_reports WHERE status = 'open') AS ugc_reports_open`).bind(daysAgoIso(7)),
         db.prepare("SELECT day, SUM(n) AS n FROM stats_daily WHERE kind = 'pv_total' AND day >= ?1 GROUP BY day ORDER BY day").bind(d30),
         db.prepare("SELECT key, SUM(n) AS n FROM stats_daily WHERE kind = 'pv' AND day >= ?1 GROUP BY key ORDER BY n DESC LIMIT 12").bind(d7),
         db.prepare("SELECT key, SUM(n) AS n FROM stats_daily WHERE kind = 'ref' AND day >= ?1 GROUP BY key ORDER BY n DESC LIMIT 10").bind(d30),
@@ -679,12 +708,17 @@ async function admin(context, sub, method, ip, url) {
         (SELECT COUNT(*) FROM factcheck_reports) AS factcheck_reports, (SELECT COUNT(*) FROM content_reviews) AS content_reviews,
         (SELECT COUNT(*) FROM corrections) AS corrections, (SELECT COUNT(*) FROM audit_log) AS audit_log,
         (SELECT COUNT(*) FROM stats_daily) AS stats_daily, (SELECT COUNT(*) FROM rate_limits) AS rate_limits,
+        (SELECT COUNT(*) FROM users WHERE status != 'deleted') AS users, (SELECT COUNT(*) FROM posts WHERE status != 'deleted') AS posts,
+        (SELECT COUNT(*) FROM comments WHERE status != 'deleted') AS comments, (SELECT COUNT(*) FROM bookmarks) AS bookmarks,
+        (SELECT COUNT(*) FROM ugc_reports) AS ugc_reports, (SELECT COUNT(*) FROM videos) AS videos,
         (SELECT MIN(day) FROM stats_daily) AS stats_from`).first();
       const purgeable = await db.prepare(`SELECT
         (SELECT COUNT(*) FROM leads WHERE status IN ('done','hold') AND COALESCE(updated_at, created_at) < ?1) AS leads,
         (SELECT COUNT(*) FROM factcheck_reports WHERE status IN ('published','rejected','duplicate') AND COALESCE(updated_at, created_at) < ?1) AS reports,
         (SELECT COUNT(*) FROM newsletter WHERE unsubscribed_at IS NOT NULL AND unsubscribed_at < ?2) AS newsletter,
-        (SELECT COUNT(*) FROM stats_daily WHERE day < ?3) AS stats`).bind(daysAgoIso(365), daysAgoIso(30), kstDay(400)).first();
+        (SELECT COUNT(*) FROM stats_daily WHERE day < ?3) AS stats,
+        (SELECT COUNT(*) FROM posts WHERE status = 'deleted' AND COALESCE(updated_at, created_at) < ?2) + (SELECT COUNT(*) FROM comments WHERE status = 'deleted' AND created_at < ?2) AS ugc,
+        (SELECT COUNT(*) FROM ugc_reports WHERE status = 'resolved' AND COALESCE(handled_at, created_at) < ?1) AS ugc_reports`).bind(daysAgoIso(365), daysAgoIso(30), kstDay(400)).first();
       return json({ ok: true, db: true, schema_version: SCHEMA_VERSION, keys: { admin: !!env.ADMIN_KEY, reviewer: !!env.REVIEWER_KEY }, tables: t, purgeable, now: nowIso() });
     }
     if (sub === "purge" && method === "POST") {
@@ -695,24 +729,690 @@ async function admin(context, sub, method, ip, url) {
         db.prepare("DELETE FROM newsletter WHERE unsubscribed_at IS NOT NULL AND unsubscribed_at < ?1").bind(daysAgoIso(30)),
         db.prepare("DELETE FROM stats_daily WHERE day < ?1").bind(kstDay(400)),
         db.prepare("DELETE FROM rate_limits WHERE bucket IS NULL OR bucket < ?1").bind(Math.floor(Date.now() / 60000) - 120),
+        // 회원이 삭제한 글·댓글은 30일 뒤 완전히 지운다 (딸린 댓글·공감·신고 포함)
+        db.prepare("DELETE FROM comments WHERE post_id IN (SELECT id FROM posts WHERE status = 'deleted' AND COALESCE(updated_at, created_at) < ?1)").bind(daysAgoIso(30)),
+        db.prepare("DELETE FROM post_likes WHERE post_id IN (SELECT id FROM posts WHERE status = 'deleted' AND COALESCE(updated_at, created_at) < ?1)").bind(daysAgoIso(30)),
+        db.prepare("DELETE FROM posts WHERE status = 'deleted' AND COALESCE(updated_at, created_at) < ?1").bind(daysAgoIso(30)),
+        db.prepare("DELETE FROM comments WHERE status = 'deleted' AND created_at < ?1").bind(daysAgoIso(30)),
+        db.prepare("DELETE FROM ugc_reports WHERE status = 'resolved' AND COALESCE(handled_at, created_at) < ?1").bind(daysAgoIso(365)),
       ]);
       const n = r.map((x) => (x.meta && x.meta.changes) || 0);
-      const detail = `문의 ${n[0]} · 팩트체크 요청 ${n[1]} · 수신거부 구독자 ${n[2]} · 오래된 통계 ${n[3]}`;
+      const ugc = n[7] + n[8];
+      const detail = `문의 ${n[0]} · 팩트체크 요청 ${n[1]} · 수신거부 구독자 ${n[2]} · 오래된 통계 ${n[3]} · 삭제된 글·댓글 ${ugc} · 처리된 신고 ${n[9]}`;
       await audit(env, sess, "purge", null, detail);
-      return json({ ok: true, deleted: { leads: n[0], reports: n[1], newsletter: n[2], stats: n[3], rate_limits: n[4] }, detail });
+      return json({ ok: true, deleted: { leads: n[0], reports: n[1], newsletter: n[2], stats: n[3], rate_limits: n[4], ugc, ugc_reports: n[9] }, detail });
     }
     if (sub === "export" && method === "GET") {
       if (sess.role !== "admin") return deny();
-      const names = ["qna", "leads", "newsletter", "factcheck_reports", "content_reviews", "corrections", "settings", "audit_log", "stats_daily"];
+      const names = ["qna", "leads", "newsletter", "factcheck_reports", "content_reviews", "corrections", "settings", "audit_log", "stats_daily", "posts", "comments", "post_likes", "bookmarks", "ugc_reports", "videos"];
       const out = { app: "bareunbp", exported_at: nowIso(), schema_version: SCHEMA_VERSION, tables: {} };
       const rs = await db.batch(names.map((n) => db.prepare(`SELECT * FROM ${n}`)));
       names.forEach((n, i) => { out.tables[n] = rs[i].results; });
+      // 회원 표는 비밀번호·복구 코드 해시를 빼고 내보낸다
+      out.tables.users = (await db.prepare("SELECT id, username, nickname, email, created_at, last_login_at, status, agreed_at, memo FROM users").all()).results;
       await audit(env, sess, "export_all", null, "전체 데이터 백업 내려받기");
       return new Response(JSON.stringify(out, null, 1), { status: 200, headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", "Content-Disposition": `attachment; filename="bareunbp-backup-${kstDay()}.json"` } });
+    }
+
+    // ---------------- 회원 관리
+    if (res === "members" && !id && method === "GET") {
+      if (sess.role !== "admin") return deny();
+      const st = q("status", 20) || "current", kw = q("q", 60);
+      const where = [], args = [];
+      if (st === "current") where.push("u.status != 'deleted'");
+      else if (st !== "all") { where.push("u.status = ?"); args.push(st); }
+      if (kw) { where.push("(u.username LIKE ? OR u.nickname LIKE ? OR u.email LIKE ? OR u.memo LIKE ?)"); args.push(...Array(4).fill(`%${kw}%`)); }
+      const w = where.length ? "WHERE " + where.join(" AND ") : "";
+      const [items, total, tabs] = await db.batch([
+        db.prepare(`SELECT u.id, u.username, u.nickname, u.email, u.created_at, u.last_login_at, u.status, u.memo, u.must_change_pw, u.handled_by, u.updated_at,
+          (SELECT COUNT(*) FROM posts p WHERE p.user_id = u.id AND p.status != 'deleted') AS posts,
+          (SELECT COUNT(*) FROM comments c WHERE c.user_id = u.id AND c.status != 'deleted') AS comments,
+          (SELECT COUNT(*) FROM posts p WHERE p.user_id = u.id AND p.status = 'hidden') + (SELECT COUNT(*) FROM comments c WHERE c.user_id = u.id AND c.status = 'hidden') AS hidden
+          FROM users u ${w} ORDER BY u.id DESC LIMIT ${lim} OFFSET ${off}`).bind(...args),
+        db.prepare(`SELECT COUNT(*) AS n FROM users u ${w}`).bind(...args),
+        db.prepare("SELECT status, COUNT(*) AS n FROM users GROUP BY status"),
+      ]);
+      return json({ ok: true, items: items.results, total: total.results[0].n, tabs: Object.fromEntries(tabs.results.map((r) => [r.status, r.n])) });
+    }
+    if (res === "members" && id && method === "POST") {
+      if (sess.role !== "admin") return deny();
+      const row = await db.prepare("SELECT * FROM users WHERE id = ?1").bind(id).first();
+      if (!row) return json({ ok: false, error: "not_found" }, 404);
+      if (row.status === "deleted") return json({ ok: false, error: "이미 탈퇴 처리된 계정입니다." }, 400);
+      if (act === "temppw") {
+        // 임시 비밀번호: 콘솔(브라우저)에서 만든 값을 받아 저장하고, 기존 로그인은 모두 끊는다
+        if (!isProof(body.proof)) return json({ ok: false, error: "bad_request" }, 400);
+        const salt = randHex(16);
+        await db.prepare("UPDATE users SET pw_salt = ?1, pw_hash = ?2, must_change_pw = 1, session_ver = session_ver + 1, handled_by = ?3, updated_at = ?4 WHERE id = ?5")
+          .bind(salt, await hmac(salt, body.proof), sess.name, nowIso(), id).run();
+        await audit(env, sess, "member_temppw", "member#" + id, row.username + " 임시 비밀번호 발급");
+        return json({ ok: true });
+      }
+      if (act === "delete") {
+        const hide = body.hide_posts === true;
+        await withdrawUser(db, row, hide);
+        await audit(env, sess, "member_delete", "member#" + id, row.username + " 강제 탈퇴" + (hide ? " · 작성 글 숨김" : ""));
+        return json({ ok: true });
+      }
+      const status = ["active", "suspended"].includes(body.status) ? body.status : row.status;
+      const memo = body.memo !== undefined ? cleanMulti(body.memo, 1000) : row.memo;
+      await db.prepare("UPDATE users SET status = ?1, memo = ?2, handled_by = ?3, updated_at = ?4, session_ver = session_ver + ?5 WHERE id = ?6")
+        .bind(status, memo, sess.name, nowIso(), status !== row.status && status === "suspended" ? 1 : 0, id).run();
+      await audit(env, sess, status !== row.status ? (status === "suspended" ? "member_suspend" : "member_restore") : "member_memo", "member#" + id, row.username + (memo && memo !== row.memo ? " · " + memo.slice(0, 200) : ""));
+      return json({ ok: true });
+    }
+
+    // ---------------- 게시판 관리 (글)
+    if (res === "board" && !id && method === "GET") {
+      if (sess.role !== "admin") return deny();
+      const st = q("status", 20) || "visible", kw = q("q", 60), cat = q("cat", 20), uid = parseInt(url.searchParams.get("user") || "0", 10);
+      const where = [], args = [];
+      if (st === "reported") where.push("p.status != 'deleted' AND p.report_count > 0");
+      else if (st !== "all") { where.push("p.status = ?"); args.push(st); }
+      if (cat) { where.push("p.category = ?"); args.push(cat); }
+      if (uid) { where.push("p.user_id = ?"); args.push(uid); }
+      if (kw) { where.push("(p.title LIKE ? OR p.body LIKE ? OR u.nickname LIKE ? OR u.username LIKE ?)"); args.push(...Array(4).fill(`%${kw}%`)); }
+      const w = where.length ? "WHERE " + where.join(" AND ") : "";
+      const [items, total, tabs] = await db.batch([
+        db.prepare(`SELECT p.id, p.user_id, p.author_label, p.category, p.title, p.body, p.created_at, p.updated_at, p.status, p.pinned, p.views, p.like_count, p.comment_count, p.report_count, p.hidden_reason, p.handled_by, u.nickname, u.username, u.status AS user_status
+          FROM posts p LEFT JOIN users u ON u.id = p.user_id ${w} ORDER BY p.id DESC LIMIT ${lim} OFFSET ${off}`).bind(...args),
+        db.prepare(`SELECT COUNT(*) AS n FROM posts p LEFT JOIN users u ON u.id = p.user_id ${w}`).bind(...args),
+        db.prepare("SELECT status, COUNT(*) AS n FROM posts GROUP BY status"),
+      ]);
+      return json({ ok: true, items: items.results, total: total.results[0].n, tabs: Object.fromEntries(tabs.results.map((r) => [r.status, r.n])) });
+    }
+    if (res === "board" && !id && method === "POST") {
+      // 운영팀 공지 작성
+      if (sess.role !== "admin") return deny();
+      const title = clean(body.title, 80), text = cleanMulti(body.body, 5000);
+      if (title.length < 2 || text.length < 5) return json({ ok: false, error: "제목과 내용을 입력하세요." }, 400);
+      const r = await db.prepare("INSERT INTO posts (user_id, author_label, category, title, body, created_at, status, pinned) VALUES (NULL, '바른혈압 운영팀', '공지', ?1, ?2, ?3, 'visible', ?4)")
+        .bind(title, text, nowIso(), body.pinned === false ? 0 : 1).run();
+      await audit(env, sess, "notice_add", "post#" + r.meta.last_row_id, title);
+      return json({ ok: true, id: r.meta.last_row_id });
+    }
+    if (res === "board" && id && method === "POST") {
+      if (sess.role !== "admin") return deny();
+      const row = await db.prepare("SELECT * FROM posts WHERE id = ?1").bind(id).first();
+      if (!row) return json({ ok: false, error: "not_found" }, 404);
+      if (act === "delete") {
+        await db.batch([
+          db.prepare("DELETE FROM comments WHERE post_id = ?1").bind(id),
+          db.prepare("DELETE FROM post_likes WHERE post_id = ?1").bind(id),
+          db.prepare("DELETE FROM ugc_reports WHERE target_type = 'post' AND target_id = ?1").bind(id),
+          db.prepare("DELETE FROM bookmarks WHERE key = ?1").bind("post:" + id),
+          db.prepare("DELETE FROM posts WHERE id = ?1").bind(id),
+        ]);
+        await audit(env, sess, "post_delete", "post#" + id, row.title.slice(0, 200));
+        return json({ ok: true });
+      }
+      const status = ["visible", "hidden"].includes(body.status) ? body.status : row.status;
+      const pinned = body.pinned !== undefined ? (body.pinned ? 1 : 0) : row.pinned;
+      const reason = status === "hidden" ? clean(body.hidden_reason, 100) || row.hidden_reason || "운영 원칙 위반" : null;
+      const title = row.author_label && body.title !== undefined ? clean(body.title, 80) || row.title : row.title;
+      const text = row.author_label && body.body !== undefined ? cleanMulti(body.body, 5000) || row.body : row.body;
+      const stmts = [db.prepare("UPDATE posts SET status = ?1, pinned = ?2, hidden_reason = ?3, handled_by = ?4, title = ?5, body = ?6, updated_at = CASE WHEN ?7 = 1 THEN ?8 ELSE updated_at END WHERE id = ?9")
+        .bind(status, pinned, reason, sess.name, title, text, title !== row.title || text !== row.body ? 1 : 0, nowIso(), id)];
+      // 숨김·복구로 처리했으면 이 글에 걸린 신고를 처리 완료로 바꾼다
+      if (status !== row.status) stmts.push(db.prepare("UPDATE ugc_reports SET status = 'resolved', handled_by = ?1, handled_at = ?2 WHERE target_type = 'post' AND target_id = ?3 AND status = 'open'").bind(sess.name, nowIso(), id));
+      if (status === "visible" && row.status === "hidden") stmts.push(db.prepare("UPDATE posts SET report_count = 0 WHERE id = ?1").bind(id));
+      await db.batch(stmts);
+      const what = status !== row.status ? (status === "hidden" ? "post_hide" : "post_restore") : pinned !== row.pinned ? "post_pin" : "post_update";
+      await audit(env, sess, what, "post#" + id, row.title.slice(0, 120) + (reason ? " · " + reason : "") + (what === "post_pin" ? (pinned ? " · 상단 고정" : " · 고정 해제") : ""));
+      return json({ ok: true });
+    }
+
+    // ---------------- 게시판 관리 (댓글)
+    if (res === "comments" && !id && method === "GET") {
+      if (sess.role !== "admin") return deny();
+      const st = q("status", 20) || "visible", kw = q("q", 60), pid = parseInt(url.searchParams.get("post") || "0", 10);
+      const where = [], args = [];
+      if (st === "reported") where.push("c.status != 'deleted' AND c.report_count > 0");
+      else if (st !== "all") { where.push("c.status = ?"); args.push(st); }
+      if (pid) { where.push("c.post_id = ?"); args.push(pid); }
+      if (kw) { where.push("(c.body LIKE ? OR u.nickname LIKE ? OR u.username LIKE ?)"); args.push(...Array(3).fill(`%${kw}%`)); }
+      const w = where.length ? "WHERE " + where.join(" AND ") : "";
+      const [items, total, tabs] = await db.batch([
+        db.prepare(`SELECT c.id, c.post_id, c.user_id, c.body, c.created_at, c.status, c.report_count, c.hidden_reason, c.handled_by, u.nickname, u.username, p.title AS post_title
+          FROM comments c LEFT JOIN users u ON u.id = c.user_id LEFT JOIN posts p ON p.id = c.post_id ${w} ORDER BY c.id DESC LIMIT ${lim} OFFSET ${off}`).bind(...args),
+        db.prepare(`SELECT COUNT(*) AS n FROM comments c LEFT JOIN users u ON u.id = c.user_id ${w}`).bind(...args),
+        db.prepare("SELECT status, COUNT(*) AS n FROM comments GROUP BY status"),
+      ]);
+      return json({ ok: true, items: items.results, total: total.results[0].n, tabs: Object.fromEntries(tabs.results.map((r) => [r.status, r.n])) });
+    }
+    if (res === "comments" && id && method === "POST") {
+      if (sess.role !== "admin") return deny();
+      const row = await db.prepare("SELECT * FROM comments WHERE id = ?1").bind(id).first();
+      if (!row) return json({ ok: false, error: "not_found" }, 404);
+      if (act === "delete") {
+        await db.batch([
+          db.prepare("DELETE FROM ugc_reports WHERE target_type = 'comment' AND target_id = ?1").bind(id),
+          db.prepare("DELETE FROM comments WHERE id = ?1").bind(id),
+          db.prepare("UPDATE posts SET comment_count = (SELECT COUNT(*) FROM comments WHERE post_id = ?1 AND status = 'visible') WHERE id = ?1").bind(row.post_id),
+        ]);
+        await audit(env, sess, "comment_delete", "comment#" + id, row.body.slice(0, 200));
+        return json({ ok: true });
+      }
+      const status = ["visible", "hidden"].includes(body.status) ? body.status : row.status;
+      const reason = status === "hidden" ? clean(body.hidden_reason, 100) || row.hidden_reason || "운영 원칙 위반" : null;
+      await db.batch([
+        db.prepare("UPDATE comments SET status = ?1, hidden_reason = ?2, handled_by = ?3, report_count = CASE WHEN ?1 = 'visible' THEN 0 ELSE report_count END WHERE id = ?4").bind(status, reason, sess.name, id),
+        db.prepare("UPDATE ugc_reports SET status = 'resolved', handled_by = ?1, handled_at = ?2 WHERE target_type = 'comment' AND target_id = ?3 AND status = 'open'").bind(sess.name, nowIso(), id),
+        db.prepare("UPDATE posts SET comment_count = (SELECT COUNT(*) FROM comments WHERE post_id = ?1 AND status = 'visible') WHERE id = ?1").bind(row.post_id),
+      ]);
+      await audit(env, sess, status === "hidden" ? "comment_hide" : "comment_restore", "comment#" + id, row.body.slice(0, 120) + (reason ? " · " + reason : ""));
+      return json({ ok: true });
+    }
+
+    // ---------------- 신고 처리
+    if (res === "ugcreports" && !id && method === "GET") {
+      if (sess.role !== "admin") return deny();
+      const st = q("status", 20) || "open";
+      const w = st === "all" ? "" : "WHERE r.status = ?1";
+      const stmt = db.prepare(`SELECT r.target_type, r.target_id, COUNT(*) AS n, MIN(r.created_at) AS first_at, MAX(r.created_at) AS last_at, GROUP_CONCAT(DISTINCT r.reason) AS reasons, GROUP_CONCAT(r.detail, ' / ') AS details, MAX(r.status) AS status, MAX(r.handled_by) AS handled_by,
+          CASE WHEN r.target_type = 'post' THEN (SELECT p.title FROM posts p WHERE p.id = r.target_id) ELSE (SELECT p.title FROM posts p JOIN comments c ON c.post_id = p.id WHERE c.id = r.target_id) END AS post_title,
+          CASE WHEN r.target_type = 'post' THEN (SELECT p.body FROM posts p WHERE p.id = r.target_id) ELSE (SELECT c.body FROM comments c WHERE c.id = r.target_id) END AS body,
+          CASE WHEN r.target_type = 'post' THEN (SELECT p.status FROM posts p WHERE p.id = r.target_id) ELSE (SELECT c.status FROM comments c WHERE c.id = r.target_id) END AS target_status,
+          CASE WHEN r.target_type = 'post' THEN r.target_id ELSE (SELECT c.post_id FROM comments c WHERE c.id = r.target_id) END AS post_id,
+          CASE WHEN r.target_type = 'post' THEN (SELECT u.nickname FROM users u JOIN posts p ON p.user_id = u.id WHERE p.id = r.target_id) ELSE (SELECT u.nickname FROM users u JOIN comments c ON c.user_id = u.id WHERE c.id = r.target_id) END AS nickname
+          FROM ugc_reports r ${w} GROUP BY r.target_type, r.target_id ORDER BY last_at DESC LIMIT ${lim} OFFSET ${off}`);
+      const { results } = st === "all" ? await stmt.all() : await stmt.bind(st).all();
+      return json({ ok: true, items: results });
+    }
+    if (sub === "ugcreports/resolve" && method === "POST") {
+      if (sess.role !== "admin") return deny();
+      const tt = body.target_type === "comment" ? "comment" : "post", tid = parseInt(body.target_id, 10), hide = body.action === "hide";
+      if (!tid) return json({ ok: false, error: "bad_request" }, 400);
+      const table = tt === "post" ? "posts" : "comments";
+      const row = await db.prepare(`SELECT * FROM ${table} WHERE id = ?1`).bind(tid).first();
+      const stmts = [db.prepare("UPDATE ugc_reports SET status = 'resolved', handled_by = ?1, handled_at = ?2 WHERE target_type = ?3 AND target_id = ?4 AND status = 'open'").bind(sess.name, nowIso(), tt, tid)];
+      if (row && row.status !== "deleted") {
+        if (hide) stmts.push(db.prepare(`UPDATE ${table} SET status = 'hidden', hidden_reason = ?1, handled_by = ?2 WHERE id = ?3`).bind(clean(body.hidden_reason, 100) || "신고 검토 후 숨김", sess.name, tid));
+        else stmts.push(db.prepare(`UPDATE ${table} SET status = 'visible', hidden_reason = NULL, report_count = 0, handled_by = ?1 WHERE id = ?2`).bind(sess.name, tid));
+        if (tt === "comment") stmts.push(db.prepare("UPDATE posts SET comment_count = (SELECT COUNT(*) FROM comments WHERE post_id = ?1 AND status = 'visible') WHERE id = ?1").bind(row.post_id));
+      }
+      await db.batch(stmts);
+      await audit(env, sess, "ugc_resolve", tt + "#" + tid, hide ? "신고 인정 · 숨김" : "문제 없음 · 유지");
+      return json({ ok: true });
+    }
+
+    // ---------------- 영상 관리
+    if (res === "videos" && !id && method === "GET") {
+      if (sess.role !== "admin") return deny();
+      const { results } = await db.prepare("SELECT * FROM videos ORDER BY sort DESC, id DESC LIMIT 500").all();
+      return json({ ok: true, items: results });
+    }
+    if (res === "videos" && method === "POST") {
+      if (sess.role !== "admin") return deny();
+      if (id && act === "delete") {
+        const row = await db.prepare("SELECT title FROM videos WHERE id = ?1").bind(id).first();
+        await db.prepare("DELETE FROM videos WHERE id = ?1").bind(id).run();
+        await audit(env, sess, "video_delete", "video#" + id, row ? row.title : "");
+        return json({ ok: true });
+      }
+      const yid = youtubeId(body.url || body.youtube_id);
+      const title = clean(body.title, 120), source = clean(body.source, 60), category = clean(body.category, 20), note = clean(body.note, 300);
+      const status = body.status === "hidden" ? "hidden" : "visible", sort = Math.max(-999, Math.min(999, parseInt(body.sort || "0", 10) || 0));
+      if (!yid) return json({ ok: false, error: "유튜브 주소를 확인하세요. (예: https://www.youtube.com/watch?v=...)" }, 400);
+      if (!title) return json({ ok: false, error: "제목을 입력하세요." }, 400);
+      if (!source) return json({ ok: false, error: "출처(채널·기관명)를 입력하세요." }, 400);
+      if (id) {
+        await db.prepare("UPDATE videos SET youtube_id = ?1, title = ?2, source = ?3, category = ?4, note = ?5, status = ?6, sort = ?7 WHERE id = ?8").bind(yid, title, source, category, note, status, sort, id).run();
+        await audit(env, sess, "video_edit", "video#" + id, title);
+      } else {
+        const dup = await db.prepare("SELECT id FROM videos WHERE youtube_id = ?1").bind(yid).first();
+        if (dup) return json({ ok: false, error: "이미 등록된 영상입니다." }, 400);
+        await db.prepare("INSERT INTO videos (youtube_id, title, source, category, note, status, sort, created_at, created_by) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9)").bind(yid, title, source, category, note, status, sort, nowIso(), sess.name).run();
+        await audit(env, sess, "video_add", null, title + " · " + source);
+      }
+      return json({ ok: true });
     }
 
     return json({ ok: false, error: "unknown_endpoint" }, 404);
   } catch (e) {
     return json({ ok: false, error: "db_error", detail: String(e && e.message ? e.message : e).slice(0, 300) }, 500);
   }
+}
+
+// ================================================================== 회원 · 저장 · 자유게시판 · 영상
+const BOARD_CATS = ["자유", "정보공유", "생활습관", "음식·식단", "측정·기기", "가족·돌봄", "질문"];
+const REPORT_REASONS = ["광고·홍보", "의료 조언·약 권유", "허위·과장 정보", "욕설·비방", "개인정보 노출", "기타"];
+const NICK_RESERVED = ["바른혈압", "운영", "관리자", "편집팀", "감수", "전문의", "의사", "약사", "간호사", "교수", "원장", "admin", "탈퇴"];
+const AUTO_HIDE_REPORTS = 5; // 서로 다른 회원 5명이 신고하면 운영자 확인 전까지 자동으로 숨긴다
+const SUPPORT = "spaceblank0100@gmail.com";
+
+const hex = (buf) => Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+const randHex = (n) => hex(crypto.getRandomValues(new Uint8Array(n)));
+// 브라우저가 PBKDF2-SHA256으로 늘려 보낸 비밀번호 값(64자리 16진수)
+const isProof = (s) => typeof s === "string" && /^[a-f0-9]{64}$/.test(s);
+const isUsername = (s) => /^[a-z][a-z0-9_]{3,19}$/.test(s);
+
+function youtubeId(v) {
+  const s = clean(v, 200);
+  if (/^[A-Za-z0-9_-]{11}$/.test(s)) return s;
+  const m = s.match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
+function nicknameError(n) {
+  if (!/^[가-힣A-Za-z0-9_]{2,12}$/.test(n)) return "닉네임은 한글·영문·숫자 2~12자로 정해 주세요.";
+  const low = n.toLowerCase();
+  if (NICK_RESERVED.some((w) => low.indexOf(w) > -1)) return "운영자나 의료인으로 오해될 수 있는 닉네임은 쓸 수 없습니다.";
+  return null;
+}
+function recoveryCode() {
+  const abc = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // 헷갈리는 글자(0·O·1·I) 제외, 32자
+  const r = crypto.getRandomValues(new Uint8Array(16));
+  let out = "";
+  for (let i = 0; i < 16; i++) { out += abc[r[i] % 32]; if (i % 4 === 3 && i < 15) out += "-"; }
+  return out;
+}
+const normCode = (c) => String(c || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+const recoveryHash = (username, code) => hmac("recovery:" + username, normCode(code));
+
+// 회원 세션 서명 키: SESSION_SECRET이 없으면 DB에 무작위 값을 한 번 만들어 쓴다 (공개 소스만으로는 위조할 수 없게)
+let userSecretCache = null;
+async function userSecret(env) {
+  if (env.SESSION_SECRET) return env.SESSION_SECRET + "|user-v1";
+  if (userSecretCache) return userSecretCache;
+  let row = await env.DB.prepare("SELECT value FROM app_secrets WHERE key = 'user_session'").first();
+  if (!row) {
+    await env.DB.prepare("INSERT OR IGNORE INTO app_secrets (key, value) VALUES ('user_session', ?1)").bind(randHex(32)).run();
+    row = await env.DB.prepare("SELECT value FROM app_secrets WHERE key = 'user_session'").first();
+  }
+  userSecretCache = row.value + "|user-v1";
+  return userSecretCache;
+}
+async function makeUserSession(env, u) {
+  const payload = b64url(JSON.stringify({ u: u.id, v: u.session_ver, e: Date.now() + USER_SESSION_DAYS * 86400e3 }));
+  return payload + "." + (await hmac(await userSecret(env), payload));
+}
+async function readUser(env, request) {
+  const tok = getCookie(request, USER_COOKIE);
+  if (!tok) return null;
+  const [payload, sig] = tok.split(".");
+  if (!payload || !sig) return null;
+  if (sig !== (await hmac(await userSecret(env), payload))) return null;
+  let s;
+  try { s = JSON.parse(fromB64url(payload)); } catch (e) { return null; }
+  if (!s.u || !s.e || s.e < Date.now()) return null;
+  const u = await env.DB.prepare("SELECT id, username, nickname, email, status, session_ver, must_change_pw, created_at FROM users WHERE id = ?1").bind(s.u).first();
+  if (!u || u.status === "deleted" || u.session_ver !== s.v) return null;
+  return u;
+}
+const userCookie = (value, maxAge) => `${USER_COOKIE}=${value}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAge}`;
+const publicUser = (u) => ({ id: u.id, username: u.username, nickname: u.nickname, email: u.email || "", created_at: u.created_at, status: u.status, must_change_pw: !!u.must_change_pw });
+
+async function failCount(env, key) {
+  const id = `${key}:${Math.floor(Date.now() / 600000)}`;
+  const r = await env.DB.prepare("SELECT hits FROM rate_limits WHERE id = ?1").bind(id).first();
+  return { id, n: r ? r.hits : 0 };
+}
+async function failBump(env, id) {
+  await env.DB.prepare("INSERT INTO rate_limits (id, hits, bucket) VALUES (?1, 1, ?2) ON CONFLICT(id) DO UPDATE SET hits = hits + 1").bind(id, Math.floor(Date.now() / 60000)).run();
+}
+async function bumpEvent(env, ev) {
+  try { await env.DB.prepare("INSERT INTO stats_daily (day, kind, key, n) VALUES (?1, 'event', ?2, 1) ON CONFLICT(day, kind, key) DO UPDATE SET n = n + 1").bind(kstDay(), ev).run(); } catch (e) {}
+}
+// 탈퇴 처리: 계정 정보를 지우고(아이디는 재사용 방지용 임의 값으로 바꿈) 저장·공감 기록을 삭제한다. 글은 선택에 따라 남기거나 지운다.
+async function withdrawUser(db, u, removePosts) {
+  const stmts = [
+    db.prepare("UPDATE users SET username = ?1, nickname = NULL, email = NULL, pw_hash = NULL, pw_salt = NULL, recovery_hash = NULL, memo = NULL, status = 'deleted', session_ver = session_ver + 1, updated_at = ?2 WHERE id = ?3").bind("deleted_" + u.id + "_" + randHex(4), nowIso(), u.id),
+    db.prepare("DELETE FROM bookmarks WHERE user_id = ?1").bind(u.id),
+    db.prepare("DELETE FROM post_likes WHERE user_id = ?1").bind(u.id),
+    db.prepare("DELETE FROM ugc_reports WHERE user_id = ?1 AND status = 'open'").bind(u.id),
+  ];
+  if (removePosts) {
+    stmts.push(db.prepare("UPDATE posts SET status = 'deleted', updated_at = ?1 WHERE user_id = ?2 AND status != 'deleted'").bind(nowIso(), u.id));
+    stmts.push(db.prepare("UPDATE comments SET status = 'deleted' WHERE user_id = ?1 AND status != 'deleted'").bind(u.id));
+  }
+  await db.batch(stmts);
+  if (removePosts) await db.prepare("UPDATE posts SET comment_count = (SELECT COUNT(*) FROM comments c WHERE c.post_id = posts.id AND c.status = 'visible') WHERE status = 'visible'").run();
+  await db.batch([
+    db.prepare("UPDATE posts SET like_count = (SELECT COUNT(*) FROM post_likes l WHERE l.post_id = posts.id) WHERE status != 'deleted'"),
+    db.prepare("UPDATE posts SET report_count = (SELECT COUNT(*) FROM ugc_reports r WHERE r.target_type = 'post' AND r.target_id = posts.id) WHERE report_count > 0"),
+    db.prepare("UPDATE comments SET report_count = (SELECT COUNT(*) FROM ugc_reports r WHERE r.target_type = 'comment' AND r.target_id = comments.id) WHERE report_count > 0"),
+  ]);
+}
+const authorOf = (r) => r.author_label || r.nickname || "탈퇴한 회원";
+
+async function member(context, path, method, ip, url) {
+  const { request, env } = context;
+  if (!env.DB) return json({ ok: false, error: "not_configured" }, 503);
+  try { await ensureSchema(env); } catch (e) { return json({ ok: false, error: "db_error" }, 500); }
+  if (method !== "GET" && method !== "POST") return json({ ok: false, error: "method_not_allowed" }, 405);
+  // 다른 사이트에서 보낸 요청 차단: 사이트 스크립트가 붙이는 헤더가 있어야 변경 요청을 받는다
+  if (method === "POST" && request.headers.get("X-BP") !== "1") return json({ ok: false, error: "bad_request" }, 400);
+
+  const db = env.DB;
+  const body = method === "POST" ? (await readBody(request)) || {} : {};
+  if (body.website) return json({ ok: true }); // honeypot
+  const now = nowIso();
+  const ipHash = await sha(ip);
+  const qs = (k, max = 60) => clean(url.searchParams.get(k), max);
+  const fail = (message, status = 400, error = "invalid") => json({ ok: false, error, message }, status);
+
+  try {
+    const user = await readUser(env, request);
+    const needLogin = () => fail("로그인이 필요합니다.", 401, "login_required");
+    const blocked = () => fail("이용이 제한된 계정입니다. 문의: " + SUPPORT, 403, "suspended");
+
+    // ============================================================ 계정
+    if (path === "auth/me" && method === "GET") return json({ ok: true, user: user ? publicUser(user) : null });
+
+    if (path === "auth/check" && method === "GET") {
+      if (await rateLimited(env, ip, "check", 40)) return fail("잠시 후 다시 시도해 주세요.", 429);
+      const un = qs("username", 20).toLowerCase(), nn = qs("nickname", 12);
+      const out = { ok: true };
+      if (un) {
+        if (!isUsername(un)) out.username = "아이디는 영문 소문자로 시작하는 4~20자(영문 소문자·숫자·밑줄)로 정해 주세요.";
+        else if (await db.prepare("SELECT 1 FROM users WHERE username = ?1").bind(un).first()) out.username = "이미 사용 중인 아이디입니다.";
+        else out.username = "";
+      }
+      if (nn) {
+        const e = nicknameError(nn);
+        if (e) out.nickname = e;
+        else if (await db.prepare("SELECT 1 FROM users WHERE nickname = ?1 AND id != ?2").bind(nn, user ? user.id : 0).first()) out.nickname = "이미 사용 중인 닉네임입니다.";
+        else out.nickname = "";
+      }
+      return json(out);
+    }
+
+    if (path === "auth/signup" && method === "POST") {
+      if (user) return fail("이미 로그인되어 있습니다.");
+      // 같은 접속지에서 1시간에 가입 10건까지 (통신사·사무실처럼 여러 사람이 같은 주소를 쓰는 경우를 고려). 입력 오류는 세지 않는다.
+      if (await rateLimited(env, ip, "signup-try", 60, 60)) return fail("가입 시도가 많습니다. 잠시 후 다시 시도해 주세요.", 429);
+      const made = await env.DB.prepare("SELECT hits FROM rate_limits WHERE id = ?1").bind(`signup-ok:${ipHash}:${Math.floor(Date.now() / 3600000)}`).first();
+      if (made && made.hits >= 10) return fail("이 접속 환경에서 가입이 많이 이루어졌습니다. 1시간 뒤 다시 시도해 주세요.", 429);
+      const username = clean(body.username, 20).toLowerCase(), nickname = clean(body.nickname, 12), email = clean(body.email, 120).toLowerCase();
+      if (!isUsername(username)) return fail("아이디는 영문 소문자로 시작하는 4~20자(영문 소문자·숫자·밑줄)로 정해 주세요.");
+      const ne = nicknameError(nickname);
+      if (ne) return fail(ne);
+      if (email && !isEmail(email)) return fail("이메일 형식을 확인해 주세요.");
+      if (!isProof(body.proof)) return fail("비밀번호를 다시 입력해 주세요.");
+      if (body.agree_terms !== true || body.agree_privacy !== true) return fail("이용약관과 개인정보 수집·이용에 동의해 주세요.");
+      if (body.age14 !== true) return fail("만 14세 이상만 가입할 수 있습니다.");
+      if (await db.prepare("SELECT 1 FROM users WHERE username = ?1").bind(username).first()) return fail("이미 사용 중인 아이디입니다.");
+      if (await db.prepare("SELECT 1 FROM users WHERE nickname = ?1").bind(nickname).first()) return fail("이미 사용 중인 닉네임입니다.");
+      const salt = randHex(16), code = recoveryCode();
+      const r = await db.prepare("INSERT INTO users (username, nickname, email, pw_hash, pw_salt, pw_ver, recovery_hash, created_at, last_login_at, status, agreed_at) VALUES (?1, ?2, ?3, ?4, ?5, 1, ?6, ?7, ?7, 'active', ?7)")
+        .bind(username, nickname, email || null, await hmac(salt, body.proof), salt, await recoveryHash(username, code), now).run();
+      const u = { id: r.meta.last_row_id, username, nickname, email, status: "active", session_ver: 1, must_change_pw: 0, created_at: now };
+      if (body.newsletter === true && email) {
+        await db.prepare("INSERT INTO newsletter (created_at, email, source, token) VALUES (?1, ?2, 'signup', lower(hex(randomblob(12)))) ON CONFLICT(email) DO UPDATE SET unsubscribed_at = NULL").bind(now, email).run();
+      }
+      await failBump(env, `signup-ok:${ipHash}:${Math.floor(Date.now() / 3600000)}`);
+      await bumpEvent(env, "signup");
+      return json({ ok: true, user: publicUser(u), recovery_code: code }, 200, { "Set-Cookie": userCookie(await makeUserSession(env, u), USER_SESSION_DAYS * 86400) });
+    }
+
+    if (path === "auth/login" && method === "POST") {
+      const username = clean(body.username, 20).toLowerCase();
+      const f1 = await failCount(env, "ulogin:" + ipHash), f2 = await failCount(env, "ulogin-u:" + (await sha(username)));
+      if (f1.n >= 10 || f2.n >= 10) return fail("로그인 시도가 너무 많습니다. 10분 뒤 다시 시도해 주세요.", 429);
+      const row = isUsername(username) ? await db.prepare("SELECT * FROM users WHERE username = ?1").bind(username).first() : null;
+      let ok = false;
+      if (row && row.pw_hash && row.status !== "deleted" && isProof(body.proof)) ok = await safeEqual(await hmac(row.pw_salt, body.proof), row.pw_hash);
+      if (!ok) {
+        await failBump(env, f1.id); await failBump(env, f2.id);
+        return fail("아이디 또는 비밀번호가 올바르지 않습니다.", 401, "bad_credentials");
+      }
+      await db.prepare("UPDATE users SET last_login_at = ?1 WHERE id = ?2").bind(now, row.id).run();
+      return json({ ok: true, user: publicUser(row) }, 200, { "Set-Cookie": userCookie(await makeUserSession(env, row), USER_SESSION_DAYS * 86400) });
+    }
+
+    if (path === "auth/logout" && method === "POST") return json({ ok: true }, 200, { "Set-Cookie": userCookie("", 0) });
+
+    // 복구 코드로 비밀번호 재설정 (이메일 발송 없이 본인이 직접)
+    if (path === "auth/reset" && method === "POST") {
+      const username = clean(body.username, 20).toLowerCase();
+      const f = await failCount(env, "ureset:" + ipHash);
+      if (f.n >= 5) return fail("시도가 너무 많습니다. 10분 뒤 다시 시도해 주세요.", 429);
+      if (!isProof(body.proof)) return fail("새 비밀번호를 다시 입력해 주세요.");
+      const row = isUsername(username) ? await db.prepare("SELECT * FROM users WHERE username = ?1").bind(username).first() : null;
+      const good = row && row.status !== "deleted" && row.recovery_hash && normCode(body.code).length === 16 && (await safeEqual(await recoveryHash(username, body.code), row.recovery_hash));
+      if (!good) { await failBump(env, f.id); return fail("아이디 또는 복구 코드가 올바르지 않습니다.", 401, "bad_credentials"); }
+      const salt = randHex(16), code = recoveryCode();
+      await db.prepare("UPDATE users SET pw_salt = ?1, pw_hash = ?2, recovery_hash = ?3, must_change_pw = 0, session_ver = session_ver + 1, updated_at = ?4 WHERE id = ?5")
+        .bind(salt, await hmac(salt, body.proof), await recoveryHash(username, code), now, row.id).run();
+      row.session_ver += 1; row.must_change_pw = 0;
+      return json({ ok: true, user: publicUser(row), recovery_code: code }, 200, { "Set-Cookie": userCookie(await makeUserSession(env, row), USER_SESSION_DAYS * 86400) });
+    }
+
+    if (path === "auth/profile" && method === "POST") {
+      if (!user) return needLogin();
+      const nickname = body.nickname !== undefined ? clean(body.nickname, 12) : user.nickname;
+      const email = body.email !== undefined ? clean(body.email, 120).toLowerCase() : user.email || "";
+      if (nickname !== user.nickname) {
+        const e = nicknameError(nickname);
+        if (e) return fail(e);
+        if (await db.prepare("SELECT 1 FROM users WHERE nickname = ?1 AND id != ?2").bind(nickname, user.id).first()) return fail("이미 사용 중인 닉네임입니다.");
+      }
+      if (email && !isEmail(email)) return fail("이메일 형식을 확인해 주세요.");
+      await db.prepare("UPDATE users SET nickname = ?1, email = ?2, updated_at = ?3 WHERE id = ?4").bind(nickname, email || null, now, user.id).run();
+      return json({ ok: true, user: publicUser({ ...user, nickname, email }) });
+    }
+
+    if ((path === "auth/password" || path === "auth/recovery" || path === "auth/withdraw") && method === "POST") {
+      if (!user) return needLogin();
+      const f = await failCount(env, "upw:" + user.id);
+      if (f.n >= 8) return fail("시도가 너무 많습니다. 10분 뒤 다시 시도해 주세요.", 429);
+      const row = await db.prepare("SELECT * FROM users WHERE id = ?1").bind(user.id).first();
+      const good = isProof(body.current) && (await safeEqual(await hmac(row.pw_salt, body.current), row.pw_hash));
+      if (!good) { await failBump(env, f.id); return fail("현재 비밀번호가 올바르지 않습니다.", 401, "bad_credentials"); }
+      if (path === "auth/password") {
+        if (!isProof(body.next)) return fail("새 비밀번호를 다시 입력해 주세요.");
+        if (body.next === body.current) return fail("현재 비밀번호와 다른 비밀번호를 정해 주세요.");
+        const salt = randHex(16);
+        await db.prepare("UPDATE users SET pw_salt = ?1, pw_hash = ?2, must_change_pw = 0, session_ver = session_ver + 1, updated_at = ?3 WHERE id = ?4").bind(salt, await hmac(salt, body.next), now, user.id).run();
+        row.session_ver += 1; row.must_change_pw = 0;
+        // 다른 기기의 로그인은 끊기고, 지금 기기는 새 세션으로 이어진다
+        return json({ ok: true, user: publicUser(row) }, 200, { "Set-Cookie": userCookie(await makeUserSession(env, row), USER_SESSION_DAYS * 86400) });
+      }
+      if (path === "auth/recovery") {
+        const code = recoveryCode();
+        await db.prepare("UPDATE users SET recovery_hash = ?1, updated_at = ?2 WHERE id = ?3").bind(await recoveryHash(row.username, code), now, user.id).run();
+        return json({ ok: true, recovery_code: code });
+      }
+      await withdrawUser(db, row, body.delete_posts === true);
+      await bumpEvent(env, "withdraw");
+      return json({ ok: true }, 200, { "Set-Cookie": userCookie("", 0) });
+    }
+
+    // ============================================================ 저장(찜)
+    if (path === "bookmarks" && method === "GET") {
+      if (!user) return needLogin();
+      const { results } = await db.prepare(
+        "SELECT b.key, CASE WHEN b.key LIKE 'post:%' THEN COALESCE((SELECT p.title FROM posts p WHERE p.id = CAST(substr(b.key, 6) AS INTEGER) AND p.status = 'visible'), '') ELSE b.title END AS title, b.created_at FROM bookmarks b WHERE b.user_id = ?1 ORDER BY b.created_at DESC LIMIT 500"
+      ).bind(user.id).all();
+      return json({ ok: true, items: results });
+    }
+    if ((path === "bookmarks" || path === "bookmarks/sync") && method === "POST") {
+      if (!user) return needLogin();
+      const okKey = (k) => (isPath(k) && !k.startsWith("/admin") && !k.startsWith("/api")) || /^post:\d{1,9}$/.test(k);
+      if (path === "bookmarks/sync") {
+        // 로그인 전 이 기기에 저장해 둔 목록을 계정으로 옮긴다
+        const items = Array.isArray(body.items) ? body.items.slice(0, 200) : [];
+        const stmts = [];
+        for (const it of items) {
+          const k = clean(it && it.k, 160);
+          if (okKey(k)) stmts.push(db.prepare("INSERT OR IGNORE INTO bookmarks (user_id, key, title, created_at) VALUES (?1, ?2, ?3, ?4)").bind(user.id, k, clean(it.t, 160), /^\d{4}-\d{2}-\d{2}T/.test(String(it.at)) ? String(it.at).slice(0, 24) : now));
+        }
+        if (stmts.length) await db.batch(stmts);
+        return json({ ok: true, merged: stmts.length });
+      }
+      const key = clean(body.key, 160);
+      if (!okKey(key)) return fail("저장할 수 없는 주소입니다.");
+      if (body.on === false) {
+        await db.prepare("DELETE FROM bookmarks WHERE user_id = ?1 AND key = ?2").bind(user.id, key).run();
+        return json({ ok: true, on: false });
+      }
+      const cnt = await db.prepare("SELECT COUNT(*) AS n FROM bookmarks WHERE user_id = ?1").bind(user.id).first();
+      if (cnt.n >= 500) return fail("저장은 500개까지 할 수 있습니다. 저장함을 정리한 뒤 다시 시도해 주세요.");
+      await db.prepare("INSERT OR IGNORE INTO bookmarks (user_id, key, title, created_at) VALUES (?1, ?2, ?3, ?4)").bind(user.id, key, clean(body.title, 160), now).run();
+      await bumpEvent(env, "bookmark_add");
+      return json({ ok: true, on: true });
+    }
+
+    // ============================================================ 영상 (운영자가 콘솔에서 추가한 목록)
+    if (path === "videos" && method === "GET") {
+      const { results } = await db.prepare("SELECT id, youtube_id, title, source, category, note FROM videos WHERE status = 'visible' ORDER BY sort DESC, id DESC LIMIT 200").all();
+      return json({ ok: true, items: results }, 200, { "Cache-Control": "public, max-age=300" });
+    }
+
+    // ============================================================ 자유게시판
+    if (path === "board" && method === "GET") {
+      const cat = qs("cat", 20), kw = qs("q", 40), sort = qs("sort", 10);
+      const page = Math.min(500, Math.max(1, parseInt(url.searchParams.get("page") || "1", 10) || 1)), size = 20;
+      const where = ["p.status = 'visible'"], args = [];
+      if (cat) { where.push("p.category = ?"); args.push(cat); }
+      if (kw) { where.push("(p.title LIKE ? OR p.body LIKE ?)"); args.push(`%${kw}%`, `%${kw}%`); }
+      const w = "WHERE " + where.join(" AND ");
+      const order = sort === "like" ? "p.like_count DESC, p.id DESC" : sort === "comment" ? "p.comment_count DESC, p.id DESC" : (!cat && !kw ? "p.pinned DESC, " : "") + "p.id DESC";
+      const [items, total] = await db.batch([
+        db.prepare(`SELECT p.id, p.category, p.title, substr(p.body, 1, 110) AS excerpt, p.created_at, p.views, p.like_count, p.comment_count, p.pinned, p.author_label, u.nickname
+          FROM posts p LEFT JOIN users u ON u.id = p.user_id ${w} ORDER BY ${order} LIMIT ${size} OFFSET ${(page - 1) * size}`).bind(...args),
+        db.prepare(`SELECT COUNT(*) AS n FROM posts p ${w}`).bind(...args),
+      ]);
+      return json({
+        ok: true, page, size, total: total.results[0].n, categories: BOARD_CATS,
+        items: items.results.map((r) => ({ id: r.id, category: r.category, title: r.title, excerpt: r.excerpt.replace(/\s+/g, " "), created_at: r.created_at, views: r.views, likes: r.like_count, comments: r.comment_count, pinned: !!r.pinned, author: authorOf(r), staff: !!r.author_label })),
+      });
+    }
+
+    if (path === "board/mine" && method === "GET") {
+      if (!user) return needLogin();
+      const [posts, comments] = await db.batch([
+        db.prepare("SELECT id, category, title, created_at, status, views, like_count AS likes, comment_count AS comments, hidden_reason FROM posts WHERE user_id = ?1 AND status != 'deleted' ORDER BY id DESC LIMIT 200").bind(user.id),
+        db.prepare("SELECT c.id, c.post_id, substr(c.body, 1, 120) AS body, c.created_at, c.status, p.title AS post_title, p.status AS post_status FROM comments c LEFT JOIN posts p ON p.id = c.post_id WHERE c.user_id = ?1 AND c.status != 'deleted' ORDER BY c.id DESC LIMIT 200").bind(user.id),
+      ]);
+      return json({ ok: true, posts: posts.results, comments: comments.results });
+    }
+
+    if (path === "board" && method === "POST") {
+      if (!user) return needLogin();
+      if (user.status !== "active") return blocked();
+      const category = clean(body.category, 20), title = clean(body.title, 80), text = cleanMulti(body.body, 5000).replace(/\n{4,}/g, "\n\n\n");
+      if (!BOARD_CATS.includes(category)) return fail("말머리를 선택해 주세요.");
+      if (title.length < 2) return fail("제목을 2자 이상 입력해 주세요.");
+      if (text.length < 5) return fail("내용을 5자 이상 입력해 주세요.");
+      if (await rateLimited(env, "u" + user.id, "post", 5, 10)) return fail("글을 잇달아 올릴 수 없습니다. 잠시 후 다시 시도해 주세요.", 429);
+      if (await rateLimited(env, "u" + user.id, "post-day", 30, 1440)) return fail("하루에 올릴 수 있는 글 수를 넘었습니다.", 429);
+      const r = await db.prepare("INSERT INTO posts (user_id, category, title, body, created_at, status, ip_hash) VALUES (?1, ?2, ?3, ?4, ?5, 'visible', ?6)").bind(user.id, category, title, text, now, ipHash).run();
+      await bumpEvent(env, "post_create");
+      return json({ ok: true, id: r.meta.last_row_id });
+    }
+
+    const cm = path.match(/^board\/comment\/(\d{1,9})\/(delete|report)$/);
+    if (cm && method === "POST") {
+      if (!user) return needLogin();
+      const cid = parseInt(cm[1], 10);
+      const c = await db.prepare("SELECT * FROM comments WHERE id = ?1").bind(cid).first();
+      if (!c || c.status === "deleted") return fail("댓글을 찾을 수 없습니다.", 404, "not_found");
+      if (cm[2] === "delete") {
+        if (c.user_id !== user.id) return fail("본인이 쓴 댓글만 지울 수 있습니다.", 403, "forbidden");
+        await db.batch([
+          db.prepare("UPDATE comments SET status = 'deleted' WHERE id = ?1").bind(cid),
+          db.prepare("UPDATE posts SET comment_count = (SELECT COUNT(*) FROM comments WHERE post_id = ?1 AND status = 'visible') WHERE id = ?1").bind(c.post_id),
+          db.prepare("UPDATE ugc_reports SET status = 'resolved', handled_by = '글쓴이 삭제', handled_at = ?1 WHERE target_type = 'comment' AND target_id = ?2 AND status = 'open'").bind(now, cid),
+        ]);
+        return json({ ok: true });
+      }
+      return reportTarget(env, user, "comment", c, body, fail);
+    }
+
+    const bm = path.match(/^board\/(\d{1,9})(?:\/(like|comment|report|delete))?$/);
+    if (bm) {
+      const pid = parseInt(bm[1], 10), act = bm[2] || null;
+      const p = await db.prepare("SELECT p.*, u.nickname FROM posts p LEFT JOIN users u ON u.id = p.user_id WHERE p.id = ?1").bind(pid).first();
+      if (!p || p.status === "deleted") return fail("글을 찾을 수 없습니다. 삭제되었거나 주소가 바뀌었을 수 있습니다.", 404, "not_found");
+      const mine = !!(user && p.user_id === user.id);
+
+      if (method === "GET" && !act) {
+        if (p.status === "hidden" && !mine) return fail("운영 원칙에 따라 숨김 처리된 글입니다.", 404, "hidden");
+        const [cs, liked, saved] = await db.batch([
+          db.prepare("SELECT c.id, c.user_id, c.body, c.created_at, c.status, u.nickname FROM comments c LEFT JOIN users u ON u.id = c.user_id WHERE c.post_id = ?1 AND c.status != 'deleted' ORDER BY c.id LIMIT 500").bind(pid),
+          db.prepare("SELECT 1 AS x FROM post_likes WHERE post_id = ?1 AND user_id = ?2").bind(pid, user ? user.id : 0),
+          db.prepare("SELECT 1 AS x FROM bookmarks WHERE user_id = ?1 AND key = ?2").bind(user ? user.id : 0, "post:" + pid),
+        ]);
+        if (!mine) context.waitUntil(db.prepare("UPDATE posts SET views = views + 1 WHERE id = ?1").bind(pid).run().catch(() => {}));
+        return json({
+          ok: true,
+          post: { id: p.id, category: p.category, title: p.title, body: p.body, created_at: p.created_at, updated_at: p.updated_at, views: p.views + (mine ? 0 : 1), likes: p.like_count, comments: p.comment_count, pinned: !!p.pinned, author: authorOf(p), staff: !!p.author_label, status: p.status, hidden_reason: mine ? p.hidden_reason : null, mine, liked: liked.results.length > 0, saved: saved.results.length > 0 },
+          comments: cs.results.map((c) => c.status === "hidden" ? { id: c.id, hidden: true, created_at: c.created_at } : { id: c.id, body: c.body, created_at: c.created_at, author: c.nickname || "탈퇴한 회원", mine: !!(user && c.user_id === user.id), op: c.user_id != null && c.user_id === p.user_id }),
+          viewer: user ? { nickname: user.nickname, status: user.status } : null,
+          categories: BOARD_CATS, reasons: REPORT_REASONS,
+        });
+      }
+      if (method !== "POST") return json({ ok: false, error: "method_not_allowed" }, 405);
+      if (!user) return needLogin();
+
+      if (!act) { // 수정
+        if (!mine) return fail("본인이 쓴 글만 고칠 수 있습니다.", 403, "forbidden");
+        if (user.status !== "active") return blocked();
+        if (p.status !== "visible") return fail("숨김 처리된 글은 고칠 수 없습니다. 문의: " + SUPPORT, 403, "forbidden");
+        const category = clean(body.category, 20), title = clean(body.title, 80), text = cleanMulti(body.body, 5000).replace(/\n{4,}/g, "\n\n\n");
+        if (!BOARD_CATS.includes(category)) return fail("말머리를 선택해 주세요.");
+        if (title.length < 2) return fail("제목을 2자 이상 입력해 주세요.");
+        if (text.length < 5) return fail("내용을 5자 이상 입력해 주세요.");
+        await db.prepare("UPDATE posts SET category = ?1, title = ?2, body = ?3, updated_at = ?4 WHERE id = ?5").bind(category, title, text, now, pid).run();
+        return json({ ok: true, id: pid });
+      }
+      if (act === "delete") {
+        if (!mine) return fail("본인이 쓴 글만 지울 수 있습니다.", 403, "forbidden");
+        await db.batch([
+          db.prepare("UPDATE posts SET status = 'deleted', updated_at = ?1 WHERE id = ?2").bind(now, pid),
+          db.prepare("DELETE FROM bookmarks WHERE key = ?1").bind("post:" + pid),
+          db.prepare("UPDATE ugc_reports SET status = 'resolved', handled_by = '글쓴이 삭제', handled_at = ?1 WHERE status = 'open' AND ((target_type = 'post' AND target_id = ?2) OR (target_type = 'comment' AND target_id IN (SELECT id FROM comments WHERE post_id = ?2)))").bind(now, pid),
+        ]);
+        return json({ ok: true });
+      }
+      if (p.status !== "visible") return fail("숨김 처리된 글입니다.", 403, "forbidden");
+      if (act === "like") {
+        const ex = await db.prepare("SELECT 1 AS x FROM post_likes WHERE post_id = ?1 AND user_id = ?2").bind(pid, user.id).first();
+        await db.batch([
+          ex ? db.prepare("DELETE FROM post_likes WHERE post_id = ?1 AND user_id = ?2").bind(pid, user.id) : db.prepare("INSERT OR IGNORE INTO post_likes (post_id, user_id, created_at) VALUES (?1, ?2, ?3)").bind(pid, user.id, now),
+          db.prepare("UPDATE posts SET like_count = (SELECT COUNT(*) FROM post_likes WHERE post_id = ?1) WHERE id = ?1").bind(pid),
+        ]);
+        const n = await db.prepare("SELECT like_count AS n FROM posts WHERE id = ?1").bind(pid).first();
+        return json({ ok: true, liked: !ex, likes: n.n });
+      }
+      if (act === "comment") {
+        if (user.status !== "active") return blocked();
+        const text = cleanMulti(body.body, 1000).replace(/\n{3,}/g, "\n\n");
+        if (text.length < 2) return fail("댓글을 2자 이상 입력해 주세요.");
+        if (await rateLimited(env, "u" + user.id, "comment", 10, 5)) return fail("댓글을 잇달아 올릴 수 없습니다. 잠시 후 다시 시도해 주세요.", 429);
+        const r = await db.prepare("INSERT INTO comments (post_id, user_id, body, created_at, status, ip_hash) VALUES (?1, ?2, ?3, ?4, 'visible', ?5)").bind(pid, user.id, text, now, ipHash).run();
+        await db.prepare("UPDATE posts SET comment_count = (SELECT COUNT(*) FROM comments WHERE post_id = ?1 AND status = 'visible') WHERE id = ?1").bind(pid).run();
+        await bumpEvent(env, "comment_create");
+        return json({ ok: true, comment: { id: r.meta.last_row_id, body: text, created_at: now, author: user.nickname, mine: true, op: mine } });
+      }
+      if (act === "report") return reportTarget(env, user, "post", p, body, fail);
+    }
+
+    return json({ ok: false, error: "unknown_endpoint" }, 404);
+  } catch (e) {
+    return json({ ok: false, error: "db_error", message: "일시적인 문제가 생겼습니다. 잠시 후 다시 시도해 주세요." }, 500);
+  }
+}
+
+// 신고 접수: 같은 회원은 한 대상에 한 번만. 신고가 쌓이면 운영자 확인 전까지 자동으로 숨긴다.
+async function reportTarget(env, user, type, row, body, fail) {
+  const db = env.DB;
+  if (row.user_id === user.id) return fail("본인이 쓴 글은 신고할 수 없습니다.");
+  if (row.author_label) return fail("운영팀 공지는 신고할 수 없습니다. 의견은 " + SUPPORT + " 으로 보내 주세요.");
+  const reason = clean(body.reason, 30);
+  if (!REPORT_REASONS.includes(reason)) return fail("신고 사유를 선택해 주세요.");
+  if (await rateLimited(env, "u" + user.id, "ugcreport", 20, 60)) return fail("신고를 너무 많이 보냈습니다. 잠시 후 다시 시도해 주세요.", 429);
+  const table = type === "post" ? "posts" : "comments";
+  const r = await db.prepare("INSERT OR IGNORE INTO ugc_reports (target_type, target_id, user_id, reason, detail, created_at, status) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'open')")
+    .bind(type, row.id, user.id, reason, clean(body.detail, 300) || null, nowIso()).run();
+  if (!r.meta.changes) return json({ ok: true, already: true });
+  const n = (await db.prepare("SELECT COUNT(*) AS n FROM ugc_reports WHERE target_type = ?1 AND target_id = ?2").bind(type, row.id).first()).n;
+  const stmts = [db.prepare(`UPDATE ${table} SET report_count = ?1 WHERE id = ?2`).bind(n, row.id)];
+  if (n >= AUTO_HIDE_REPORTS && row.status === "visible") {
+    stmts.push(db.prepare(`UPDATE ${table} SET status = 'hidden', hidden_reason = '신고 누적으로 임시 숨김 (운영자 확인 중)' WHERE id = ?1`).bind(row.id));
+    if (type === "comment") stmts.push(db.prepare("UPDATE posts SET comment_count = (SELECT COUNT(*) FROM comments WHERE post_id = ?1 AND status = 'visible' AND id != ?2) WHERE id = ?1").bind(row.post_id, row.id));
+  }
+  await db.batch(stmts);
+  return json({ ok: true });
 }

@@ -140,6 +140,202 @@
     return h.replace(/\[([^\]\n]{1,80})\]\((\/[A-Za-z0-9\-_\/.#]*)\)/g, '<a href="$2">$1</a>').replace(/\n/g, "<br>");
   };
 
+  // ================================================================ 회원 · 저장 · 공유
+  function lsGet(k, d) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }
+  function lsSet(k, v) { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+  var SVG = {
+    user: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>',
+    save: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4.5L5 21V4a1 1 0 0 1 1-1z"/></svg>',
+    share: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></svg>'
+  };
+  window.bpIcons = SVG;
+
+  // ---- 회원 상태. 로그인 여부 표시는 브라우저에 남긴 닉네임 표시로 먼저 그리고, 필요한 화면에서만 서버에 확인한다.
+  var mePromise = null;
+  var User = window.BPUser = {
+    hint: function () { return lsGet("bp_user", null); },
+    setHint: function (u) { lsSet("bp_user", u ? { n: u.nickname } : null); drawUserLink(); },
+    get: function (path) {
+      return fetch("/api/" + path, { credentials: "same-origin" }).then(function (r) {
+        return r.json().catch(function () { return { ok: false, error: "network" }; }).then(function (j) { j.status = r.status; return j; });
+      }).catch(function () { return { ok: false, error: "network", message: "서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요." }; });
+    },
+    post: function (path, payload) {
+      return fetch("/api/" + path, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", "X-BP": "1" }, body: JSON.stringify(payload || {}) }).then(function (r) {
+        return r.json().catch(function () { return { ok: false, error: "network" }; }).then(function (j) {
+          j.status = r.status;
+          if (r.status === 401 && j.error === "login_required") User.setHint(null);
+          if (!j.ok && !j.message) j.message = j.error === "not_configured" ? "아직 회원 기능이 준비되지 않았습니다. 잠시 후 다시 시도해 주세요." : "요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.";
+          return j;
+        });
+      }).catch(function () { return { ok: false, error: "network", message: "서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요." }; });
+    },
+    // 서버에 로그인 상태 확인 (페이지당 한 번)
+    me: function (force) {
+      if (!mePromise || force) {
+        mePromise = User.get("auth/me").then(function (j) {
+          var u = j && j.ok ? j.user : null;
+          if (j && j.ok) User.setHint(u);
+          return u;
+        });
+      }
+      return mePromise;
+    },
+    // 비밀번호는 그대로 보내지 않는다. 브라우저에서 PBKDF2로 늘린 값만 서버로 보낸다.
+    derive: function (username, password) {
+      if (!window.crypto || !crypto.subtle || !window.TextEncoder) return Promise.reject(new Error("unsupported"));
+      var enc = new TextEncoder();
+      var pw = password.normalize ? password.normalize("NFC") : password;
+      return crypto.subtle.importKey("raw", enc.encode(pw), "PBKDF2", false, ["deriveBits"]).then(function (key) {
+        return crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt: enc.encode("bareunbp:v1:" + String(username).toLowerCase()), iterations: 310000 }, key, 256);
+      }).then(function (buf) {
+        return Array.prototype.map.call(new Uint8Array(buf), function (b) { return ("0" + b.toString(16)).slice(-2); }).join("");
+      });
+    },
+    loginUrl: function () { return "/account/login/?next=" + encodeURIComponent(location.pathname + location.search); }
+  };
+  function drawUserLink() {
+    var h = User.hint();
+    document.querySelectorAll("[data-user-link]").forEach(function (a) {
+      a.href = h ? "/my/" : User.loginUrl();
+      a.classList.toggle("on", !!h);
+      a.setAttribute("aria-label", h ? "마이페이지" : "로그인");
+      a.innerHTML = SVG.user + "<span>" + (h ? esc(h.n) : "로그인") + "</span>";
+    });
+    var nav = document.querySelector(".nav");
+    if (nav) {
+      var m = nav.querySelector("[data-user-nav]");
+      if (!m) { m = document.createElement("a"); m.setAttribute("data-user-nav", ""); m.className = "only-mobile"; nav.appendChild(m); }
+      m.href = h ? "/my/" : User.loginUrl();
+      m.textContent = h ? "마이페이지 · 저장한 글" : "로그인 · 회원가입";
+    }
+  }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  window.bpEsc = esc;
+  drawUserLink();
+  // 로그인 표시가 있으면 세션이 살아 있는지 조용히 확인
+  if (User.hint() && location.pathname.indexOf("/account/") !== 0) User.me();
+
+  // ---- 저장(찜). 로그인하면 계정에, 아니면 이 기기에만 저장한다.
+  var Save = window.BPSave = {
+    list: function () { return lsGet("bp_saved", []); },
+    has: function (k) { return Save.list().some(function (x) { return x.k === k; }); },
+    put: function (k, t) { var l = Save.list().filter(function (x) { return x.k !== k; }); l.unshift({ k: k, t: t, at: new Date().toISOString() }); lsSet("bp_saved", l.slice(0, 500)); },
+    drop: function (k) { lsSet("bp_saved", Save.list().filter(function (x) { return x.k !== k; })); },
+    toggle: function (k, t) {
+      var on = !Save.has(k);
+      if (!User.hint()) {
+        if (on) Save.put(k, t); else Save.drop(k);
+        return Promise.resolve({ ok: true, on: on, local: true });
+      }
+      return User.post("bookmarks", { key: k, title: t, on: on }).then(function (j) {
+        if (j.ok) { if (on) Save.put(k, t); else Save.drop(k); return { ok: true, on: on }; }
+        if (j.error === "login_required") { if (on) Save.put(k, t); else Save.drop(k); return { ok: true, on: on, local: true }; }
+        return j;
+      });
+    },
+    // 계정에 저장된 목록으로 이 기기의 목록을 맞춘다 (로그인 상태에서만)
+    refresh: function () {
+      if (!User.hint()) return Promise.resolve(Save.list());
+      return User.get("bookmarks").then(function (j) {
+        if (j.ok) lsSet("bp_saved", j.items.map(function (x) { return { k: x.key, t: x.title, at: x.created_at }; }));
+        return Save.list();
+      });
+    },
+    // 로그인 직후: 이 기기에 저장해 둔 글을 계정으로 옮긴다
+    syncUp: function () {
+      var l = Save.list();
+      var p = l.length ? User.post("bookmarks/sync", { items: l }) : Promise.resolve();
+      return p.then(function () { return Save.refresh(); });
+    }
+  };
+
+  // ---- 공유
+  window.bpShare = function (title, url, host) {
+    url = url || location.href.split("#")[0];
+    title = title || document.title;
+    if (navigator.share && window.matchMedia && matchMedia("(pointer: coarse)").matches) {
+      navigator.share({ title: title, url: url }).then(function () { window.bpTrack("share"); }).catch(function () {});
+      return;
+    }
+    var old = document.querySelector(".share-menu");
+    if (old) { var same = old.parentNode === host; old.remove(); if (same) return; }
+    var m = document.createElement("div"); m.className = "share-menu"; m.setAttribute("role", "menu");
+    var eu = encodeURIComponent(url), et = encodeURIComponent(title);
+    m.innerHTML = '<button type="button" data-s="copy">링크 복사</button>' +
+      (navigator.share ? '<button type="button" data-s="sys">다른 앱으로 공유 (카카오톡 등)</button>' : "") +
+      '<a target="_blank" rel="noopener" data-s="band" href="https://band.us/plugin/share?body=' + et + "%0A" + eu + "&route=" + encodeURIComponent(location.host) + '">네이버 밴드</a>' +
+      '<a target="_blank" rel="noopener" data-s="fb" href="https://www.facebook.com/sharer/sharer.php?u=' + eu + '">페이스북</a>' +
+      '<a target="_blank" rel="noopener" data-s="x" href="https://twitter.com/intent/tweet?text=' + et + "&url=" + eu + '">X (트위터)</a>' +
+      '<a data-s="mail" href="mailto:?subject=' + et + "&body=" + et + "%0A" + eu + '">이메일로 보내기</a>' +
+      "<small>휴대폰에서는 공유 버튼을 누르면 카카오톡·문자로 바로 보낼 수 있습니다.</small>";
+    (host || document.body).appendChild(m);
+    m.addEventListener("click", function (e) {
+      var b = e.target.closest("[data-s]"); if (!b) return;
+      window.bpTrack("share");
+      if (b.dataset.s === "copy") {
+        var done = function () { bpToast("링크를 복사했습니다."); };
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, function () { window.prompt("아래 주소를 복사하세요.", url); });
+        else window.prompt("아래 주소를 복사하세요.", url);
+      } else if (b.dataset.s === "sys") {
+        navigator.share({ title: title, url: url }).catch(function () {});
+      }
+      m.remove();
+    });
+    setTimeout(function () {
+      document.addEventListener("click", function off(e) { if (!m.contains(e.target)) { m.remove(); document.removeEventListener("click", off); } });
+    }, 0);
+  };
+
+  // ---- 저장·공유 버튼 (글 위·아래에 붙인다)
+  window.bpActions = function (host, key, title, opt) {
+    opt = opt || {};
+    host.classList.add("article-actions", "no-print");
+    var saveBtn = document.createElement("button"); saveBtn.type = "button"; saveBtn.className = "act-btn"; saveBtn.setAttribute("data-save", key);
+    var shareBtn = document.createElement("button"); shareBtn.type = "button"; shareBtn.className = "act-btn"; shareBtn.innerHTML = SVG.share + "공유";
+    function paint() {
+      var on = Save.has(key);
+      document.querySelectorAll('[data-save="' + key + '"]').forEach(function (b) { b.setAttribute("aria-pressed", on ? "true" : "false"); b.innerHTML = SVG.save + (on ? "저장됨" : "저장"); });
+    }
+    saveBtn.addEventListener("click", function () {
+      saveBtn.disabled = true;
+      Save.toggle(key, title).then(function (r) {
+        saveBtn.disabled = false; paint();
+        if (!r.ok) { bpToast(r.message || "저장하지 못했습니다."); return; }
+        if (r.on) bpToast(r.local ? "이 기기에 저장했습니다. 로그인하면 다른 기기에서도 볼 수 있습니다." : "저장했습니다. 마이페이지에서 모아 볼 수 있습니다.");
+        else bpToast("저장을 취소했습니다.");
+      });
+    });
+    shareBtn.addEventListener("click", function (e) { e.stopPropagation(); window.bpShare(title, opt.url, host); });
+    if (opt.label) { var s = document.createElement("span"); s.textContent = opt.label; host.appendChild(s); }
+    host.appendChild(saveBtn); host.appendChild(shareBtn);
+    paint();
+    return paint;
+  };
+  (function () {
+    var art = document.querySelector("article.article"), recipe = document.querySelector(".recipe .recipe-meta");
+    var h1 = document.querySelector("h1");
+    if ((!art && !recipe) || !h1) return;
+    var key = pretty(location.pathname), title = h1.textContent.replace(/[“”]/g, "").trim();
+    var paints = [];
+    if (art) {
+      var meta = art.querySelector(".article-meta");
+      if (!meta) return;
+      var top = document.createElement("div"); meta.parentNode.insertBefore(top, meta.nextSibling);
+      paints.push(window.bpActions(top, key, title));
+      var end = document.createElement("div"); end.className = "article-actions--end";
+      // 글 맨 끝의 안내(CTA·정정 요청 문구) 바로 앞에 둔다. 본문 안쪽에 있는 요소는 기준으로 삼지 않는다.
+      var before = null;
+      Array.prototype.forEach.call(art.children, function (c) { if (!before && (c.classList.contains("article-cta") || (c.tagName === "P" && c.classList.contains("fine") && c === art.lastElementChild))) before = c; });
+      if (before) art.insertBefore(end, before); else art.appendChild(end);
+      paints.push(window.bpActions(end, key, title, { label: "도움이 됐다면 저장해 두거나 필요한 분께 보내 주세요." }));
+    } else {
+      var box = document.createElement("div"); recipe.appendChild(box);
+      paints.push(window.bpActions(box, key, title));
+    }
+    if (User.hint()) Save.refresh().then(function () { paints.forEach(function (p) { p(); }); });
+  })();
+
   // ---- 운영 정보 반영: 사이트 공지, 감수 완료 표시
   fetch("/api/public").then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
     if (!j || !j.ok) return;

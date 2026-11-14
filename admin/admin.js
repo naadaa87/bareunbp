@@ -17,7 +17,8 @@
     report_print: "리포트 인쇄", timer_start: "측정 타이머 시작", timer_done: "측정 타이머 완료", sodium_use: "나트륨 계산기 사용",
     meds_check: "복약 체크", reminder_ics: "측정 알림 만들기", backup_export: "기록 백업 저장", backup_import: "기록 불러오기",
     challenge_done: "챌린지 완료 체크", form_qna: "질문·경험담 제출", form_lead: "문의·신청 제출", form_newsletter: "레터 구독",
-    form_report: "팩트체크 요청", search: "사이트 검색", logsheet_print: "기록지 인쇄", recipe_print: "레시피 인쇄", mealplan_print: "식단표 인쇄"
+    form_report: "팩트체크 요청", search: "사이트 검색", logsheet_print: "기록지 인쇄", recipe_print: "레시피 인쇄", mealplan_print: "식단표 인쇄",
+    signup: "회원가입", withdraw: "회원 탈퇴", post_create: "게시판 글 작성", comment_create: "댓글 작성", bookmark_add: "글 저장", share: "글 공유", video_play: "영상 재생"
   };
   var ACTION_LABEL = {
     login: "로그인", login_failed: "로그인 실패", qna_publish: "질문 게시", qna_update: "질문 저장", qna_delete: "질문 삭제",
@@ -25,7 +26,11 @@
     newsletter_unsubscribe: "구독 해지 처리", newsletter_restore: "구독 복구", newsletter_delete: "구독자 파기", newsletter_export: "구독자 내보내기",
     report_update: "팩트체크 요청 처리", report_delete: "팩트체크 요청 삭제", review_approve: "콘텐츠 감수 승인", review_revise: "콘텐츠 수정 필요",
     review_delete: "감수 기록 삭제", correction_add: "정정 이력 추가", correction_edit: "정정 이력 수정", settings_notice: "공지 변경",
-    purge: "보유기간 파기", export_all: "전체 백업"
+    purge: "보유기간 파기", export_all: "전체 백업",
+    member_suspend: "회원 이용 제한", member_restore: "회원 제한 해제", member_temppw: "임시 비밀번호 발급", member_delete: "회원 강제 탈퇴", member_memo: "회원 메모",
+    post_hide: "글 숨김", post_restore: "글 다시 보이기", post_delete: "글 완전 삭제", post_pin: "글 고정 변경", post_update: "글 수정", notice_add: "공지 작성",
+    comment_hide: "댓글 숨김", comment_restore: "댓글 다시 보이기", comment_delete: "댓글 삭제", ugc_resolve: "신고 처리",
+    video_add: "영상 추가", video_edit: "영상 수정", video_delete: "영상 삭제"
   };
   // 편집 정책 표현 가이드 — 서버와 같은 목록
   var BANNED = ["완치", "치료합니다", "치료해", "치료 효과", "치료됩니다", "약을 끊", "약 끊", "끊으세요", "끊어도 됩니다", "줄이세요", "복용을 중단", "중단하세요", "드시면 됩니다", "처방합니다", "진단합니다", "진단됩니다", "발병위험", "사망위험", "위험도", "보장합니다", "100%", "특효", "특효약", "확실히 낮", "무조건"];
@@ -160,7 +165,8 @@
   // ============================================================ 앱 틀
   var NAV = [
     { g: "운영", items: [["", "대시보드", 1], ["qna", "질문·경험담", 1], ["leads", "문의·신청", 0], ["reports", "팩트체크 요청", 0]] },
-    { g: "콘텐츠", items: [["content", "콘텐츠·감수", 1], ["corrections", "정정 이력", 1], ["notice", "사이트 공지", 0]] },
+    { g: "커뮤니티", items: [["board", "게시판 관리", 0], ["members", "회원", 0]] },
+    { g: "콘텐츠", items: [["content", "콘텐츠·감수", 1], ["corrections", "정정 이력", 1], ["videos", "영상 관리", 0], ["notice", "사이트 공지", 0]] },
     { g: "구독·기록", items: [["newsletter", "구독자", 0], ["audit", "활동 기록", 0], ["system", "시스템·데이터", 0]] },
     { g: "도움말", items: [["guide", "운영 가이드", 1]] }
   ];
@@ -180,7 +186,7 @@
   }
   function setBadges(c) {
     if (!c) return;
-    var map = { qna: isAdmin() ? c.qna_pending : c.qna_review, leads: c.leads_new, reports: c.reports_open };
+    var map = { qna: isAdmin() ? c.qna_pending : c.qna_review, leads: c.leads_new, reports: c.reports_open, board: c.ugc_reports_open };
     for (var k in map) { var el = document.querySelector('[data-b="' + k + '"]'); if (el) { el.hidden = !map[k]; el.textContent = map[k]; } }
   }
   function boot() {
@@ -200,7 +206,7 @@
     var side = document.getElementById("side"); if (side) side.classList.remove("open");
     if (parts[1]) parts[1].split("&").forEach(function (kv) { var p = kv.split("="); S.params[decodeURIComponent(p[0])] = decodeURIComponent(p[1] || ""); });
     document.querySelectorAll(".nav-group a").forEach(function (a) { a.classList.toggle("on", a.dataset.r === r); });
-    var views = { "": viewDashboard, qna: viewQna, leads: viewLeads, reports: viewReports, content: viewContent, corrections: viewCorrections, notice: viewNotice, newsletter: viewNewsletter, audit: viewAudit, system: viewSystem, guide: viewGuide };
+    var views = { "": viewDashboard, qna: viewQna, leads: viewLeads, reports: viewReports, content: viewContent, corrections: viewCorrections, notice: viewNotice, newsletter: viewNewsletter, audit: viewAudit, system: viewSystem, members: viewMembers, board: viewBoard, videos: viewVideos, guide: viewGuide };
     var v = views[r] || viewDashboard;
     var main = document.getElementById("main");
     main.innerHTML = '<div class="loading">불러오는 중…</div>';
@@ -228,7 +234,8 @@
       var pendingReview = need.length - reviewed - revise;
       var kpi = function (label, val, href, alert, em) { return '<a class="kpi' + (alert && val ? " alert" : "") + '" href="' + href + '"><small>' + label + '</small><b class="num">' + (val || 0) + "</b>" + (em ? "<em>" + em + "</em>" : "") + "</a>"; };
       var kpis = isAdmin()
-        ? kpi("새 질문", c.qna_pending, "#/qna?status=pending", 1) + kpi("답변 작성 중", c.qna_draft, "#/qna?status=draft") + kpi("감수 요청", c.qna_review, "#/qna?status=review") + kpi("새 문의·신청", c.leads_new, "#/leads?status=new", 1) + kpi("팩트체크 요청", c.reports_open, "#/reports", 1) + kpi("감수 전 콘텐츠", pendingReview + revise, "#/content?st=todo", 0, "/ " + need.length) + kpi("재감수 도래", due, "#/content?st=due", 1) + kpi("레터 구독자", c.nl_active, "#/newsletter", 0, c.nl_week ? "+" + c.nl_week + " 이번 주" : "")
+        ? kpi("새 질문", c.qna_pending, "#/qna?status=pending", 1) + kpi("답변 작성 중", c.qna_draft, "#/qna?status=draft") + kpi("감수 요청", c.qna_review, "#/qna?status=review") + kpi("새 문의·신청", c.leads_new, "#/leads?status=new", 1) + kpi("팩트체크 요청", c.reports_open, "#/reports", 1) + kpi("감수 전 콘텐츠", pendingReview + revise, "#/content?st=todo", 0, "/ " + need.length) + kpi("재감수 도래", due, "#/content?st=due", 1) + kpi("레터 구독자", c.nl_active, "#/newsletter", 0, c.nl_week ? "+" + c.nl_week + " 이번 주" : "") +
+          kpi("게시판 신고", c.ugc_reports_open, "#/board?tab=reports", 1) + kpi("게시판 새 글", c.posts_week, "#/board", 0, "7일 · 댓글 " + (c.comments_week || 0)) + kpi("회원", c.members, "#/members", 0, c.members_week ? "+" + c.members_week + " 이번 주" : "")
         : kpi("감수 요청 답변", c.qna_review, "#/qna?status=review", 1) + kpi("감수 전 콘텐츠", pendingReview + revise, "#/content?st=todo", 0, "/ " + need.length) + kpi("재감수 도래", due, "#/content?st=due", 1) + kpi("감수 완료 콘텐츠", reviewed, "#/content?st=approved");
       // 방문 차트
       var days = [], map = {}; d.visits.series.forEach(function (r) { map[r.day] = r.n; });
@@ -700,8 +707,8 @@
   function viewSystem(main) {
     api("system").then(function (j) {
       if (!j.ok) { main.innerHTML = pageHead("시스템·데이터") + '<div class="callout bad">' + esc(errMsg(j)) + "</div>"; return; }
-      var t = j.tables, p = j.purgeable, pTotal = p.leads + p.reports + p.newsletter + p.stats;
-      var labels = { qna: "질문·경험담", leads: "문의·신청", newsletter: "구독자", factcheck_reports: "팩트체크 요청", content_reviews: "감수 기록", corrections: "정정 이력", audit_log: "활동 기록", stats_daily: "통계(일별 집계)", rate_limits: "접수 속도 제한 기록" };
+      var t = j.tables, p = j.purgeable, pTotal = p.leads + p.reports + p.newsletter + p.stats + (p.ugc || 0) + (p.ugc_reports || 0);
+      var labels = { users: "회원", posts: "게시판 글", comments: "댓글", bookmarks: "저장(찜)", ugc_reports: "게시판 신고", videos: "등록 영상", qna: "질문·경험담", leads: "문의·신청", newsletter: "구독자", factcheck_reports: "팩트체크 요청", content_reviews: "감수 기록", corrections: "정정 이력", audit_log: "활동 기록", stats_daily: "통계(일별 집계)", rate_limits: "접수 속도 제한 기록" };
       var tr = Object.keys(labels).map(function (k) { return "<tr><td>" + labels[k] + '</td><td class="num">' + (t[k] || 0) + "</td></tr>"; }).join("");
       var ok = function (b) { return b ? '<span class="tag t-green">정상</span>' : '<span class="tag t-amber">미설정</span>'; };
       main.innerHTML = pageHead("시스템·데이터", "연결 상태, 데이터 보관, 백업을 관리합니다.") +
@@ -713,9 +720,11 @@
         '<tr><td>처리 완료·보류 후 1년 지난 문의·신청</td><td class="num">' + p.leads + "건</td></tr>" +
         '<tr><td>처리 끝난 지 1년 지난 팩트체크 요청</td><td class="num">' + p.reports + "건</td></tr>" +
         '<tr><td>수신거부 후 30일 지난 구독자</td><td class="num">' + p.newsletter + "건</td></tr>" +
-        '<tr><td>400일 지난 일별 통계</td><td class="num">' + p.stats + "건</td></tr></tbody></table>" +
+        '<tr><td>400일 지난 일별 통계</td><td class="num">' + p.stats + "건</td></tr>" +
+        '<tr><td>회원이 지운 지 30일 지난 글·댓글</td><td class="num">' + (p.ugc || 0) + "건</td></tr>" +
+        '<tr><td>처리한 지 1년 지난 게시판 신고</td><td class="num">' + (p.ugc_reports || 0) + "건</td></tr></tbody></table>" +
         '<div style="margin-top:12px;display:flex;justify-content:flex-end"><button class="btn ' + (pTotal ? "btn-d" : "btn-s") + '" id="purge"' + (pTotal ? "" : " disabled") + ">파기 실행" + (pTotal ? " (" + pTotal + "건)" : "") + "</button></div><p class=\"muted small\">한 달에 한 번 실행을 권장합니다.</p></div>" +
-        '<div class="card"><h2>전체 데이터 백업</h2><p class="small" style="margin-top:0">질문·문의·구독자·감수 기록·정정 이력·설정·활동 기록·통계를 JSON 파일 하나로 내려받습니다. 연락처·이메일이 들어 있으니 안전한 곳에 보관하세요.</p><a class="btn btn-p" href="/api/admin/export">백업 파일 내려받기</a><p class="muted small">내려받기 기록이 활동 기록에 남습니다. 한 달에 한 번 권장.</p></div>' +
+        '<div class="card"><h2>전체 데이터 백업</h2><p class="small" style="margin-top:0">질문·문의·구독자·회원·게시판·감수 기록·정정 이력·설정·활동 기록·통계를 JSON 파일 하나로 내려받습니다. 연락처·이메일이 들어 있으니 안전한 곳에 보관하세요. 회원의 비밀번호 정보는 백업 파일에 넣지 않습니다.</p><a class="btn btn-p" href="/api/admin/export">백업 파일 내려받기</a><p class="muted small">내려받기 기록이 활동 기록에 남습니다. 한 달에 한 번 권장.</p></div>' +
         "</div>";
       var pb = document.getElementById("purge");
       pb.onclick = function () {
@@ -732,17 +741,295 @@
     main.innerHTML = pageHead("운영 가이드", "바른혈압을 운영하는 사람이 같은 기준으로 판단하도록 정리한 원칙입니다.") +
       '<div class="card guide" style="max-width:880px">' +
       "<h2>운영 루틴</h2><table><thead><tr><th>주기</th><th>할 일</th></tr></thead><tbody>" +
-      "<tr><td><b>매일</b></td><td>새 질문 확인 → 답변 작성·게시 (응급 신호가 있는 질문은 우선 처리) · 새 문의 회신</td></tr>" +
+      "<tr><td><b>매일</b></td><td>새 질문 확인 → 답변 작성·게시 (응급 신호가 있는 질문은 우선 처리) · 새 문의 회신 · 게시판 신고 확인과 새 글 훑어보기</td></tr>" +
       "<tr><td><b>매주</b></td><td>팩트체크 요청 검토 · 대시보드의 사이트 검색어와 많이 본 페이지를 보고 다음 글 주제 정하기 · 주간 레터 발송</td></tr>" +
       "<tr><td><b>매월</b></td><td>감수 진행(감수 전 콘텐츠 줄이기, 재감수 도래 처리) · 보유기간 파기 · 전체 데이터 백업</td></tr>" +
       "<tr><td><b>지침 개정 시</b></td><td>관련 글 갱신 → 정정 이력 기록 → 사이트 공지로 안내</td></tr></tbody></table>" +
       "<h2>답변 원칙</h2><ul><li><b>판정하지 않습니다.</b> 개인의 수치가 정상인지, 약을 바꿔도 되는지는 답하지 않고 ‘진료 때 무엇을 물어볼지’로 안내합니다.</li><li><b>근거를 붙입니다.</b> 사이트의 관련 글이나 공공기관 자료로 연결합니다. ‘관련 글 링크’ 버튼을 쓰세요.</li><li><b>응급 신호를 먼저 봅니다.</b> 심한 두통·가슴 통증·마비·말 어눌함·시야 이상이 언급되면 ‘응급 신호 안내’ 틀을 첫머리에 넣습니다.</li><li><b>개인정보를 지웁니다.</b> 질문에 이름·연락처·병원명이 있으면 질문 칸에서 지운 뒤 게시합니다(원문은 내부 기록으로만 남습니다).</li><li><b>경험담은 경험으로 표시됩니다.</b> 약 이름·용량을 권하는 내용은 편집하거나 게시하지 않습니다.</li></ul>" +
       "<h2>표현 기준 (금칙어)</h2><p>답변을 게시할 때 아래 표현이 있으면 확인 창이 뜹니다. 부정문 등 문맥상 문제가 없을 때만 확인 후 게시합니다.</p><table><thead><tr><th>쓰지 않는 표현</th><th>대신 쓰는 표현</th></tr></thead><tbody>" + bannedRows.map(function (r) { return "<tr><td>" + esc(r[0]) + "</td><td>" + esc(r[1]) + "</td></tr>"; }).join("") + "</tbody></table>" +
       "<h2>감수 원칙</h2><ul><li>실제로 의료진이 내용을 확인한 경우에만 감수 기록을 남깁니다.</li><li>공개 화면에 감수자 이름을 표시하려면 본인의 공개 동의가 있어야 합니다.</li><li>감수 후 12개월이 지나면 ‘재감수 도래’로 표시됩니다. 지침이 바뀌면 기간과 관계없이 다시 감수합니다.</li><li>‘수정 필요’ 결과가 나온 글은 고친 뒤 다시 승인 기록을 남깁니다.</li></ul>" +
-      "<h2>역할</h2><table><thead><tr><th>역할</th><th>할 수 있는 일</th></tr></thead><tbody><tr><td><b>관리자</b></td><td>모든 기능 (게시·삭제·문의·구독자·공지·파기·백업)</td></tr><tr><td><b>감수자</b></td><td>감수 요청된 답변 검토(검토 완료·수정 요청), 콘텐츠 감수 기록, 정정 이력 보기</td></tr></tbody></table>" +
+      "<h2>역할</h2><table><thead><tr><th>역할</th><th>할 수 있는 일</th></tr></thead><tbody><tr><td><b>관리자</b></td><td>모든 기능 (게시·삭제·문의·구독자·회원·게시판·공지·파기·백업)</td></tr><tr><td><b>감수자</b></td><td>감수 요청된 답변 검토(검토 완료·수정 요청), 콘텐츠 감수 기록, 정정 이력 보기</td></tr></tbody></table>" +
+      "<h2>게시판 운영</h2><ul><li><b>숨김이 기본, 삭제는 예외입니다.</b> 원칙에 어긋난 글은 사유를 골라 숨깁니다. 글쓴이에게 사유가 보이고, 이의가 오면 다시 볼 수 있습니다. 완전 삭제는 개인정보 노출·불법 정보에만 씁니다.</li><li><b>숨길 글:</b> 약을 시작·중단·변경하라고 권하는 글, 특정 제품·병원 홍보, 다른 사람의 연락처·진료기록, 근거 없이 ‘이것만 먹으면 낫는다’는 글, 욕설·비방.</li><li><b>그대로 둘 글:</b> 본인의 경험담(“저는 이렇게 했어요”), 서비스에 대한 불만·비판, 편집팀 글에 대한 반론. 마음에 들지 않는다는 이유로 숨기지 않습니다.</li><li><b>응급 신호가 보이는 글</b>(심한 두통·가슴 통증·마비)에는 숨기기 전에 119 안내 댓글이 필요한지 먼저 판단합니다.</li><li><b>이용 제한</b>은 같은 위반이 반복될 때 씁니다. 사유를 회원 메모에 남깁니다.</li><li><b>공지</b>는 ‘게시판 관리 → 공지 쓰기’로 올리고, 필요하면 상단에 고정합니다.</li></ul>" +
+      "<h2>회원 문의 대응</h2><ul><li><b>비밀번호 분실:</b> 먼저 ‘비밀번호 재설정’ 페이지의 복구 코드를 안내합니다. 코드가 없으면, 요청 메일의 보낸 주소가 회원 정보의 이메일과 같은지 확인한 뒤 임시 비밀번호를 발급해 그 주소로만 회신합니다.</li><li><b>이메일을 등록하지 않은 계정</b>은 본인 확인 방법이 없습니다. 새로 가입하도록 안내합니다.</li><li><b>게시 중단 요청</b>(명예훼손·사생활 침해 주장)이 오면 해당 글을 먼저 숨기고, 3영업일 안에 처리 결과를 회신합니다.</li></ul>" +
       "<h2>개인정보 처리</h2><ul><li>혈압 기록은 이용자 브라우저에만 있고 서버에는 없습니다. 관리자도 볼 수 없습니다.</li><li>방문 통계는 페이지 주소·날짜·유입 사이트·도구 이름만 날짜별 합계로 남습니다.</li><li>문의 연락처는 회신 목적에만 쓰고, 처리 후 1년이 지나면 파기합니다.</li><li>CSV·백업 파일은 개인 PC에 오래 두지 말고 필요한 작업 후 지웁니다.</li></ul>" +
       "<h2>콘텐츠 추가·수정</h2><p>글은 저장소의 생성기(<code>_src/gen</code>)로 만들어집니다. 새 글 추가나 큰 수정은 생성기를 고친 뒤 다시 빌드해 배포합니다. 수정 후에는 이 콘솔의 정정 이력에 기록하세요.</p>" +
       "</div>";
+  }
+
+  // ============================================================ 회원
+  var MEM_ST = { active: "이용 중", suspended: "이용 제한", deleted: "탈퇴" };
+  var MEM_TAG = { active: "t-green", suspended: "t-red", deleted: "" };
+  // 회원 비밀번호와 같은 방식(PBKDF2)으로 임시 비밀번호 값을 만든다. 비밀번호 원문은 서버로 보내지 않는다.
+  function deriveProof(username, password) {
+    var enc = new TextEncoder();
+    return crypto.subtle.importKey("raw", enc.encode(password), "PBKDF2", false, ["deriveBits"]).then(function (key) {
+      return crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt: enc.encode("bareunbp:v1:" + String(username).toLowerCase()), iterations: 310000 }, key, 256);
+    }).then(function (buf) { return Array.prototype.map.call(new Uint8Array(buf), function (b) { return ("0" + b.toString(16)).slice(-2); }).join(""); });
+  }
+  function tempPassword() {
+    var abc = "abcdefghjkmnpqrstuvwxyz23456789", r = crypto.getRandomValues(new Uint8Array(10)), out = "";
+    for (var i = 0; i < 10; i++) out += abc[r[i] % abc.length];
+    return out.slice(0, 5) + "-" + out.slice(5);
+  }
+  function viewMembers(main) {
+    var st = S.params.status || "current", kw = S.params.q || "", off = 0, items = [];
+    function load(append) {
+      api("members" + qs({ status: st, q: kw, limit: 50, offset: off })).then(function (j) {
+        if (!j.ok) { main.innerHTML = pageHead("회원") + '<div class="callout bad">' + esc(errMsg(j)) + "</div>"; return; }
+        items = append ? items.concat(j.items) : j.items;
+        var t = j.tabs || {}, counts = { current: (t.active || 0) + (t.suspended || 0), active: t.active || 0, suspended: t.suspended || 0, deleted: t.deleted || 0 };
+        var rows = items.map(function (u) {
+          return '<tr class="click" data-id="' + u.id + '"><td class="muted small">' + kstDate(u.created_at) + '</td><td><span class="tag ' + MEM_TAG[u.status] + '">' + MEM_ST[u.status] + "</span></td><td><b>" + esc(u.nickname || "-") + '</b><div class="muted small">' + esc(u.status === "deleted" ? "(탈퇴)" : u.username) + '</div></td><td class="hide-m">' + esc(u.email || "-") + '</td><td class="num">' + u.posts + " / " + u.comments + (u.hidden ? ' <span class="tag t-amber">숨김 ' + u.hidden + "</span>" : "") + '</td><td class="hide-m muted small">' + (u.last_login_at ? ago(u.last_login_at) : "-") + "</td></tr>";
+        }).join("");
+        main.innerHTML = pageHead("회원", "가입한 회원을 봅니다. 이름·전화번호는 받지 않으며, 혈압 기록은 회원 계정과 연결되지 않아 여기서도 볼 수 없습니다.") +
+          tabsHtml([["current", "전체 회원"], ["active", "이용 중"], ["suspended", "이용 제한"], ["deleted", "탈퇴"]], st, counts) +
+          '<div class="filters"><input class="inp" id="f-q" type="search" placeholder="아이디·닉네임·이메일·메모 검색" value="' + esc(kw) + '"><button class="btn btn-s btn-sm" id="f-go">검색</button></div>' +
+          '<div class="table-wrap"><table><thead><tr><th>가입</th><th>상태</th><th>닉네임·아이디</th><th class="hide-m">이메일</th><th>글 / 댓글</th><th class="hide-m">최근 로그인</th></tr></thead><tbody>' + (rows || '<tr><td colspan="6" class="empty">해당하는 회원이 없습니다.</td></tr>') + "</tbody></table></div>" +
+          (items.length < j.total ? '<div class="more"><button class="btn btn-s" id="more">더 보기 (' + items.length + " / " + j.total + ")</button></div>" : "");
+        main.querySelectorAll("[data-tab]").forEach(function (b) { b.onclick = function () { st = b.dataset.tab; off = 0; load(); }; });
+        var go = function () { kw = document.getElementById("f-q").value.trim(); off = 0; load(); };
+        document.getElementById("f-go").onclick = go; document.getElementById("f-q").onkeydown = function (e) { if (e.key === "Enter") go(); };
+        var mb = document.getElementById("more"); if (mb) mb.onclick = function () { off = items.length; load(true); };
+        main.querySelectorAll("tr[data-id]").forEach(function (tr) { tr.onclick = function () { openMember(items.filter(function (x) { return String(x.id) === tr.dataset.id; })[0], function () { off = 0; load(); }); }; });
+        if (S.params.id) { var it = items.filter(function (x) { return String(x.id) === S.params.id; })[0]; S.params.id = null; if (it) openMember(it, function () { off = 0; load(); }); }
+      });
+    }
+    load();
+  }
+  function openMember(u, done) {
+    var gone = u.status === "deleted";
+    var body = '<div class="meta"><span>#' + u.id + "</span><span>" + kst(u.created_at) + " 가입</span>" + (u.last_login_at ? "<span>최근 로그인 " + ago(u.last_login_at) + "</span>" : "") + '<span class="tag ' + MEM_TAG[u.status] + '">' + MEM_ST[u.status] + "</span>" + (u.must_change_pw ? '<span class="tag t-amber">임시 비밀번호 상태</span>' : "") + "</div>" +
+      '<div class="row2"><div class="field"><label>닉네임</label><div class="box">' + esc(u.nickname || "-") + '</div></div><div class="field"><label>아이디</label><div class="box">' + esc(gone ? "(탈퇴)" : u.username) + "</div></div></div>" +
+      '<div class="sec"><h3>이메일 <span>' + (u.email ? '<a class="btn btn-s btn-sm" href="mailto:' + esc(u.email) + '">메일 쓰기</a>' : "") + '</span></h3><div class="box">' + esc(u.email || "(등록하지 않음)") + "</div></div>" +
+      '<div class="sec"><h3>활동 <span><a class="btn btn-g btn-sm" href="#/board?user=' + u.id + '">이 회원의 글 보기</a></span></h3><div class="box">글 ' + u.posts + "개 · 댓글 " + u.comments + "개" + (u.hidden ? " · 숨김 처리 " + u.hidden + "건" : "") + "</div></div>" +
+      (gone ? '<div class="callout" style="margin-top:12px">탈퇴한 계정입니다. 아이디·닉네임·이메일은 삭제되었습니다.</div>' :
+        '<div class="sec"><h3>메모 (내부용)</h3><div class="field"><textarea data-memo rows="3" placeholder="제한 사유, 문의 대응 기록 등">' + esc(u.memo || "") + "</textarea></div></div>" +
+        '<div class="sec"><h3>비밀번호를 잊었다는 문의가 오면</h3><div class="callout">가입 때 등록한 이메일(' + esc(u.email || "없음") + ')에서 온 요청인지 먼저 확인하세요. 일치하면 임시 비밀번호를 발급해 <b>그 이메일로만</b> 회신합니다. 이메일이 없는 계정은 본인 확인이 어려우므로 발급하지 않는 것이 원칙입니다.</div><div style="margin-top:10px"><button class="btn btn-s" data-temp' + (u.email ? "" : " disabled") + ">임시 비밀번호 발급</button></div><div data-temp-out></div></div>" +
+        '<div class="sec"><h3>강제 탈퇴</h3><label class="check"><input type="checkbox" data-hide> <span>이 회원이 쓴 글·댓글도 함께 삭제</span></label><div style="margin-top:8px"><button class="btn btn-d btn-sm" data-del>강제 탈퇴 처리</button></div></div>');
+    var foot = gone ? "" : '<div class="left">' + (u.status === "active" ? '<button class="btn btn-d btn-sm" data-st="suspended">이용 제한</button>' : '<button class="btn btn-t btn-sm" data-st="active">제한 해제</button>') + '</div><button class="btn btn-p" data-save>메모 저장</button>';
+    var d = openDrawer("회원 #" + u.id, body, foot);
+    if (gone) return;
+    var memo = function () { return d.querySelector("[data-memo]").value; };
+    d.querySelector("[data-save]").onclick = function () { api("members/" + u.id, { body: { memo: memo() } }).then(function (j) { if (j.ok) { toast("저장했습니다."); closeDrawer(); done(); } else toast(errMsg(j), true); }); };
+    d.querySelector("[data-st]").onclick = function () {
+      var to = this.dataset.st;
+      confirmBox(to === "suspended" ? "이용을 제한할까요?" : "제한을 해제할까요?", to === "suspended" ? "<p>글·댓글 쓰기가 막히고, 로그인된 기기는 모두 로그아웃됩니다. 사유를 메모에 남겨 주세요.</p>" : "<p>다시 글과 댓글을 쓸 수 있게 됩니다.</p>", to === "suspended" ? "이용 제한" : "제한 해제", to === "suspended").then(function (ok) {
+        if (ok) api("members/" + u.id, { body: { status: to, memo: memo() } }).then(function (j) { if (j.ok) { toast("처리했습니다."); closeDrawer(); done(); } else toast(errMsg(j), true); });
+      });
+    };
+    d.querySelector("[data-temp]").onclick = function () {
+      var btn = this, out = d.querySelector("[data-temp-out]");
+      confirmBox("임시 비밀번호를 발급할까요?", "<p>기존 비밀번호는 더 이상 쓸 수 없고, 로그인된 기기는 모두 로그아웃됩니다. 회원은 임시 비밀번호로 로그인한 뒤 새 비밀번호를 정해야 합니다.</p>", "발급").then(function (ok) {
+        if (!ok) return;
+        var pw = tempPassword(); btn.disabled = true;
+        deriveProof(u.username, pw).then(function (proof) { return api("members/" + u.id + "/temppw", { body: { proof: proof } }); }).then(function (j) {
+          btn.disabled = false;
+          if (!j.ok) { toast(errMsg(j), true); return; }
+          out.innerHTML = '<div class="callout warn" style="margin-top:10px"><b>임시 비밀번호</b> — 지금만 표시됩니다. 등록된 이메일로 전달하세요.<div class="box q" style="margin-top:8px;font-family:ui-monospace,monospace;font-size:18px;letter-spacing:.06em;user-select:all">' + esc(pw) + '</div><div style="margin-top:8px"><button class="btn btn-s btn-sm" data-copy>복사</button> <a class="btn btn-s btn-sm" href="mailto:' + esc(u.email) + "?subject=" + encodeURIComponent("[바른혈압] 임시 비밀번호 안내") + "&body=" + encodeURIComponent("안녕하세요, 바른혈압입니다.\n\n요청하신 임시 비밀번호를 안내드립니다.\n\n아이디: " + u.username + "\n임시 비밀번호: " + pw + "\n\n로그인 후 마이페이지 > 계정 설정에서 새 비밀번호를 정해 주세요.\n본인이 요청하지 않았다면 이 메일에 회신해 알려 주세요.\n\n바른혈압 드림") + '">메일 작성 열기</a></div></div>';
+          out.querySelector("[data-copy]").onclick = function () { navigator.clipboard && navigator.clipboard.writeText(pw).then(function () { toast("복사했습니다."); }); };
+          toast("임시 비밀번호를 발급했습니다.");
+        }).catch(function () { btn.disabled = false; toast("이 브라우저에서는 발급할 수 없습니다.", true); });
+      });
+    };
+    d.querySelector("[data-del]").onclick = function () {
+      var hide = d.querySelector("[data-hide]").checked;
+      confirmBox("강제 탈퇴 처리할까요?", "<p>아이디·닉네임·이메일·저장 목록이 즉시 삭제되고 되돌릴 수 없습니다." + (hide ? " 쓴 글과 댓글도 함께 삭제됩니다." : " 쓴 글은 ‘탈퇴한 회원’으로 남습니다.") + "</p>", "강제 탈퇴", true).then(function (ok) {
+        if (ok) api("members/" + u.id + "/delete", { body: { hide_posts: hide } }).then(function (j) { if (j.ok) { toast("탈퇴 처리했습니다."); closeDrawer(); done(); } else toast(errMsg(j), true); });
+      });
+    };
+  }
+
+  // ============================================================ 게시판 관리
+  var UGC_ST = { visible: "공개", hidden: "숨김", deleted: "삭제됨" };
+  var UGC_TAG = { visible: "t-green", hidden: "t-red", deleted: "" };
+  var HIDE_REASONS = ["의료 조언·약 권유", "광고·홍보", "개인정보 노출", "허위·과장 정보", "욕설·비방", "도배·중복 게시", "기타 운영 원칙 위반"];
+  function reasonSelect() { return '<select data-reason>' + HIDE_REASONS.map(function (r) { return "<option>" + r + "</option>"; }).join("") + "</select>"; }
+  function boardTabs(cur, c) {
+    return '<div class="tabs">' + [["posts", "글"], ["comments", "댓글"], ["reports", "신고"]].map(function (t) {
+      return '<button data-btab="' + t[0] + '" class="' + (t[0] === cur ? "on" : "") + '">' + t[1] + (t[0] === "reports" && c ? '<span class="c">' + c + "</span>" : "") + "</button>";
+    }).join("") + "</div>";
+  }
+  function viewBoard(main) {
+    var tab = S.params.tab || "posts", openReports = 0;
+    var head = function () {
+      return pageHead("게시판 관리", "자유게시판의 글·댓글·신고를 관리합니다. 원칙에 어긋난 글은 ‘숨김’으로 처리하면 글쓴이에게 사유가 표시됩니다. 완전 삭제는 불법 정보·개인정보 노출처럼 남겨 둘 수 없는 경우에만 씁니다.",
+        '<a class="btn btn-s btn-sm" href="/community/board/" target="_blank" rel="noopener">게시판 열기</a><button class="btn btn-p btn-sm" id="notice-add">공지 쓰기</button>') + boardTabs(tab, openReports);
+    };
+    var bindHead = function () {
+      main.querySelectorAll("[data-btab]").forEach(function (b) { b.onclick = function () { tab = b.dataset.btab; draw(); }; });
+      document.getElementById("notice-add").onclick = function () { openNotice(null, draw); };
+    };
+    var refreshBadge = function () { api("dashboard").then(function (d) { if (d.ok) { setBadges(d.counts); } }); };
+    function draw() {
+      api("dashboard").then(function (d) { openReports = d.ok ? d.counts.ugc_reports_open : 0; if (d.ok) setBadges(d.counts); (tab === "comments" ? drawComments : tab === "reports" ? drawReports : drawPosts)(); });
+    }
+    // ---- 글
+    var pst = S.params.status || "visible", pkw = "", puser = S.params.user || "", poff = 0, posts = [];
+    function drawPosts(append) {
+      api("board" + qs({ status: pst, q: pkw, user: puser, limit: 50, offset: poff })).then(function (j) {
+        if (!j.ok) { main.innerHTML = head() + '<div class="callout bad">' + esc(errMsg(j)) + "</div>"; bindHead(); return; }
+        posts = append ? posts.concat(j.items) : j.items;
+        var t = j.tabs || {}, counts = { visible: t.visible || 0, hidden: t.hidden || 0, deleted: t.deleted || 0, all: (t.visible || 0) + (t.hidden || 0) + (t.deleted || 0) };
+        var rows = posts.map(function (p) {
+          return '<tr class="click" data-id="' + p.id + '"><td class="num hide-m">' + p.id + '</td><td><span class="tag ' + UGC_TAG[p.status] + '">' + UGC_ST[p.status] + "</span>" + (p.pinned ? ' <span class="tag t-blue">고정</span>' : "") + (p.report_count ? ' <span class="tag t-amber">신고 ' + p.report_count + "</span>" : "") + "</td><td><b>" + esc(p.title) + '</b><div class="ex muted">' + esc(p.body.slice(0, 90)) + '</div></td><td class="hide-m">' + esc(p.category) + '</td><td class="hide-m">' + esc(p.author_label || p.nickname || "탈퇴한 회원") + '</td><td class="num hide-m">' + p.views + " · " + p.like_count + " · " + p.comment_count + '</td><td class="muted small">' + ago(p.created_at) + "</td></tr>";
+        }).join("");
+        main.innerHTML = head() + tabsHtml([["visible", "공개"], ["hidden", "숨김"], ["reported", "신고된 글"], ["deleted", "삭제됨"], ["all", "전체"]], pst, counts) +
+          '<div class="filters"><input class="inp" id="f-q" type="search" placeholder="제목·내용·글쓴이 검색" value="' + esc(pkw) + '"><button class="btn btn-s btn-sm" id="f-go">검색</button>' + (puser ? '<span class="tag t-blue">회원 #' + esc(puser) + ' 글만 보는 중</span><button class="btn btn-g btn-sm" id="f-clear">전체 보기</button>' : "") + "</div>" +
+          '<div class="table-wrap"><table><thead><tr><th class="hide-m">#</th><th>상태</th><th>제목</th><th class="hide-m">말머리</th><th class="hide-m">글쓴이</th><th class="hide-m">조회·공감·댓글</th><th>작성</th></tr></thead><tbody>' + (rows || '<tr><td colspan="7" class="empty">해당하는 글이 없습니다.</td></tr>') + "</tbody></table></div>" +
+          (posts.length < j.total ? '<div class="more"><button class="btn btn-s" id="more">더 보기 (' + posts.length + " / " + j.total + ")</button></div>" : "");
+        bindHead();
+        main.querySelectorAll("[data-tab]").forEach(function (b) { b.onclick = function () { pst = b.dataset.tab; poff = 0; drawPosts(); }; });
+        var go = function () { pkw = document.getElementById("f-q").value.trim(); poff = 0; drawPosts(); };
+        document.getElementById("f-go").onclick = go; document.getElementById("f-q").onkeydown = function (e) { if (e.key === "Enter") go(); };
+        var fc = document.getElementById("f-clear"); if (fc) fc.onclick = function () { puser = ""; poff = 0; drawPosts(); };
+        var mb = document.getElementById("more"); if (mb) mb.onclick = function () { poff = posts.length; drawPosts(true); };
+        main.querySelectorAll("tr[data-id]").forEach(function (tr) { tr.onclick = function () { openPost(posts.filter(function (x) { return String(x.id) === tr.dataset.id; })[0], function () { poff = 0; draw(); }); }; });
+      });
+    }
+    // ---- 댓글
+    var cst = "visible", ckw = "", coff = 0, comments = [];
+    function drawComments(append) {
+      api("comments" + qs({ status: cst, q: ckw, limit: 50, offset: coff })).then(function (j) {
+        if (!j.ok) { main.innerHTML = head() + '<div class="callout bad">' + esc(errMsg(j)) + "</div>"; bindHead(); return; }
+        comments = append ? comments.concat(j.items) : j.items;
+        var t = j.tabs || {}, counts = { visible: t.visible || 0, hidden: t.hidden || 0, all: (t.visible || 0) + (t.hidden || 0) + (t.deleted || 0) };
+        var rows = comments.map(function (c) {
+          var acts = c.status === "deleted" ? "" : (c.status === "visible" ? '<button class="btn btn-g btn-sm" data-ca="hide" data-id="' + c.id + '">숨김</button>' : '<button class="btn btn-g btn-sm" data-ca="show" data-id="' + c.id + '">다시 보이기</button>') + '<button class="btn btn-g btn-sm" data-ca="delete" data-id="' + c.id + '">삭제</button>';
+          return '<tr><td><span class="tag ' + UGC_TAG[c.status] + '">' + UGC_ST[c.status] + "</span>" + (c.report_count ? ' <span class="tag t-amber">신고 ' + c.report_count + "</span>" : "") + '</td><td><div style="white-space:pre-wrap">' + esc(c.body) + '</div><div class="muted small" style="margin-top:4px">글: <a href="/community/board/post/?id=' + c.post_id + '" target="_blank" rel="noopener">' + esc(c.post_title || "삭제된 글") + "</a>" + (c.hidden_reason ? " · 사유: " + esc(c.hidden_reason) : "") + '</div></td><td class="hide-m">' + esc(c.nickname || "탈퇴한 회원") + '</td><td class="muted small">' + ago(c.created_at) + '</td><td style="white-space:nowrap">' + acts + "</td></tr>";
+        }).join("");
+        main.innerHTML = head() + tabsHtml([["visible", "공개"], ["hidden", "숨김"], ["reported", "신고된 댓글"], ["all", "전체"]], cst, counts) +
+          '<div class="filters"><input class="inp" id="f-q" type="search" placeholder="댓글·글쓴이 검색" value="' + esc(ckw) + '"><button class="btn btn-s btn-sm" id="f-go">검색</button></div>' +
+          '<div class="table-wrap"><table><thead><tr><th>상태</th><th>댓글</th><th class="hide-m">글쓴이</th><th>작성</th><th></th></tr></thead><tbody>' + (rows || '<tr><td colspan="5" class="empty">해당하는 댓글이 없습니다.</td></tr>') + "</tbody></table></div>" +
+          (comments.length < j.total ? '<div class="more"><button class="btn btn-s" id="more">더 보기</button></div>' : "");
+        bindHead();
+        main.querySelectorAll("[data-tab]").forEach(function (b) { b.onclick = function () { cst = b.dataset.tab; coff = 0; drawComments(); }; });
+        var go = function () { ckw = document.getElementById("f-q").value.trim(); coff = 0; drawComments(); };
+        document.getElementById("f-go").onclick = go; document.getElementById("f-q").onkeydown = function (e) { if (e.key === "Enter") go(); };
+        var mb = document.getElementById("more"); if (mb) mb.onclick = function () { coff = comments.length; drawComments(true); };
+        main.querySelectorAll("[data-ca]").forEach(function (b) {
+          b.onclick = function () {
+            var a = b.dataset.ca, cid = b.dataset.id, after = function (j) { if (j.ok) { toast("처리했습니다."); coff = 0; draw(); } else toast(errMsg(j), true); };
+            lastReason = HIDE_REASONS[0];
+            if (a === "hide") confirmBox("댓글을 숨길까요?", '<p>다른 사람에게는 ‘숨김 처리된 댓글’로 보입니다.</p><div class="field"><label>사유</label>' + reasonSelect() + "</div>", "숨김", true).then(function (ok) { if (ok) api("comments/" + cid, { body: { status: "hidden", hidden_reason: lastReason } }).then(after); });
+            else if (a === "show") api("comments/" + cid, { body: { status: "visible" } }).then(after);
+            else confirmBox("댓글을 완전히 삭제할까요?", "<p>되돌릴 수 없습니다. 개인정보 노출·불법 정보처럼 남겨 둘 수 없는 경우에만 삭제하세요.</p>", "삭제", true).then(function (ok) { if (ok) api("comments/" + cid + "/delete", { body: {} }).then(after); });
+          };
+        });
+      });
+    }
+    // ---- 신고
+    var rst = "open", reports = [];
+    function drawReports() {
+      api("ugcreports" + qs({ status: rst, limit: 100 })).then(function (j) {
+        if (!j.ok) { main.innerHTML = head() + '<div class="callout bad">' + esc(errMsg(j)) + "</div>"; bindHead(); return; }
+        reports = j.items;
+        var rows = reports.map(function (r, i) {
+          return '<tr class="click" data-i="' + i + '"><td><span class="tag ' + (r.target_type === "post" ? "t-blue" : "t-teal") + '">' + (r.target_type === "post" ? "글" : "댓글") + '</span></td><td><div class="ex">' + esc((r.body || "(삭제된 대상)").slice(0, 120)) + '</div><div class="muted small">' + esc(r.post_title || "") + '</div></td><td class="num"><b>' + r.n + '</b>건</td><td class="hide-m">' + esc(r.reasons || "") + '</td><td><span class="tag ' + (UGC_TAG[r.target_status] || "") + '">' + (UGC_ST[r.target_status] || "없음") + '</span></td><td class="muted small">' + ago(r.last_at) + "</td></tr>";
+        }).join("");
+        main.innerHTML = head() + tabsHtml([["open", "처리 대기"], ["resolved", "처리 완료"], ["all", "전체"]], rst, { open: openReports }) +
+          '<div class="table-wrap"><table><thead><tr><th>대상</th><th>내용</th><th>신고</th><th class="hide-m">사유</th><th>현재 상태</th><th>최근 신고</th></tr></thead><tbody>' + (rows || '<tr><td colspan="6" class="empty">' + (rst === "open" ? "처리할 신고가 없습니다." : "신고 기록이 없습니다.") + "</td></tr>") + "</tbody></table></div>" +
+          '<div class="callout" style="margin-top:14px">서로 다른 회원 5명이 신고한 글·댓글은 확인 전까지 자동으로 숨겨집니다. 문제가 없으면 ‘문제 없음’으로 처리해 다시 보이게 하세요.</div>';
+        bindHead();
+        main.querySelectorAll("[data-tab]").forEach(function (b) { b.onclick = function () { rst = b.dataset.tab; drawReports(); }; });
+        main.querySelectorAll("tr[data-i]").forEach(function (tr) { tr.onclick = function () { openUgcReport(reports[parseInt(tr.dataset.i, 10)], draw); }; });
+      });
+    }
+    draw();
+  }
+  var lastReason = HIDE_REASONS[0];
+  document.addEventListener("change", function (e) { if (e.target && e.target.matches && e.target.matches("[data-reason]")) lastReason = e.target.value; });
+  document.addEventListener("focusin", function (e) { if (e.target && e.target.matches && e.target.matches("[data-reason]")) lastReason = e.target.value; });
+  function openPost(p, done) {
+    var staff = !!p.author_label;
+    var body = '<div class="meta"><span>#' + p.id + "</span><span>" + kst(p.created_at) + "</span>" + (p.updated_at ? "<span>수정 " + ago(p.updated_at) + "</span>" : "") + "<span>" + esc(p.category) + '</span><span class="tag ' + UGC_TAG[p.status] + '">' + UGC_ST[p.status] + "</span>" + (p.pinned ? '<span class="tag t-blue">상단 고정</span>' : "") + "</div>" +
+      '<div class="sec"><h3>글쓴이 <span>' + (p.user_id && p.user_status !== "deleted" ? '<a class="btn btn-g btn-sm" href="#/members?id=' + p.user_id + '&status=current">회원 정보</a>' : "") + '</span></h3><div class="box">' + esc(p.author_label || p.nickname || "탈퇴한 회원") + (p.username && p.user_status !== "deleted" ? ' <span class="muted">(' + esc(p.username) + ")</span>" : "") + "</div></div>" +
+      (staff ? '<div class="sec"><h3>제목</h3><div class="field"><input data-title maxlength="80" value="' + esc(p.title) + '"></div></div><div class="sec"><h3>내용</h3><div class="field"><textarea data-body rows="10">' + esc(p.body) + "</textarea></div></div>"
+        : '<div class="sec"><h3>제목</h3><div class="box q">' + esc(p.title) + '</div></div><div class="sec"><h3>내용 <span><a class="btn btn-g btn-sm" href="/community/board/post/?id=' + p.id + '" target="_blank" rel="noopener">사이트에서 보기 ↗</a></span></h3><div class="box" style="white-space:pre-wrap;max-height:360px;overflow:auto">' + esc(p.body) + "</div></div>") +
+      '<div class="sec"><h3>반응</h3><div class="box">조회 ' + p.views + " · 공감 " + p.like_count + " · 댓글 " + p.comment_count + " · 신고 " + p.report_count + "</div></div>" +
+      (p.status === "hidden" ? '<div class="callout warn" style="margin-top:12px"><b>숨김 사유</b> — ' + esc(p.hidden_reason || "-") + (p.handled_by ? " (" + esc(p.handled_by) + ")" : "") + "</div>" : "") +
+      (p.status === "visible" && !staff ? '<div class="sec"><h3>숨김 처리</h3><div class="field"><label>사유 (글쓴이에게 표시됩니다)</label>' + reasonSelect() + "</div></div>" : "") +
+      (p.status !== "deleted" ? '<label class="check" style="margin-top:12px"><input type="checkbox" data-pin' + (p.pinned ? " checked" : "") + "> <span>목록 맨 위에 고정</span></label>" : "");
+    var foot = '<div class="left"><button class="btn btn-d btn-sm" data-del>완전 삭제</button></div>' + (p.status === "deleted" ? "" : (p.status === "visible" ? (staff ? "" : '<button class="btn btn-d" data-st="hidden">숨김</button>') : '<button class="btn btn-t" data-st="visible">다시 보이기</button>') + '<button class="btn btn-p" data-save>저장</button>');
+    var d = openDrawer(staff ? "공지 #" + p.id : "글 #" + p.id, body, foot);
+    var send = function (payload, msg) { api("board/" + p.id, { body: payload }).then(function (j) { if (j.ok) { toast(msg); closeDrawer(); done(); } else toast(errMsg(j), true); }); };
+    var common = function () { var o = { pinned: d.querySelector("[data-pin]") ? d.querySelector("[data-pin]").checked : !!p.pinned }; if (staff) { o.title = d.querySelector("[data-title]").value; o.body = d.querySelector("[data-body]").value; } return o; };
+    var sv = d.querySelector("[data-save]"); if (sv) sv.onclick = function () { send(common(), "저장했습니다."); };
+    var stb = d.querySelector("[data-st]");
+    if (stb) stb.onclick = function () {
+      var o = common(); o.status = stb.dataset.st;
+      if (o.status === "hidden") o.hidden_reason = d.querySelector("[data-reason]").value;
+      send(o, o.status === "hidden" ? "숨김 처리했습니다." : "다시 보이게 했습니다.");
+    };
+    d.querySelector("[data-del]").onclick = function () {
+      confirmBox("글을 완전히 삭제할까요?", "<p>글과 딸린 댓글·공감·신고 기록이 모두 지워지고 되돌릴 수 없습니다. 보통은 ‘숨김’으로 충분합니다.</p>", "완전 삭제", true).then(function (ok) {
+        if (ok) api("board/" + p.id + "/delete", { body: {} }).then(function (j) { if (j.ok) { toast("삭제했습니다."); closeDrawer(); done(); } else toast(errMsg(j), true); });
+      });
+    };
+  }
+  function openNotice(_, done) {
+    var body = '<div class="callout">운영팀 이름으로 올라가는 공지입니다. 게시판 이용 안내, 점검·변경 사항처럼 회원에게 알릴 내용만 씁니다.</div>' +
+      '<div class="sec"><h3>제목</h3><div class="field"><input data-title maxlength="80" placeholder="예: 자유게시판을 열었습니다"></div></div>' +
+      '<div class="sec"><h3>내용</h3><div class="field"><textarea data-body rows="12" placeholder="공지 내용"></textarea></div></div>' +
+      '<label class="check" style="margin-top:10px"><input type="checkbox" data-pin checked> <span>목록 맨 위에 고정</span></label>';
+    var d = openDrawer("공지 쓰기", body, '<button class="btn btn-p" data-save>공지 올리기</button>');
+    d.querySelector("[data-save]").onclick = function () {
+      api("board", { body: { title: d.querySelector("[data-title]").value, body: d.querySelector("[data-body]").value, pinned: d.querySelector("[data-pin]").checked } }).then(function (j) { if (j.ok) { toast("공지를 올렸습니다."); closeDrawer(); done(); } else toast(errMsg(j), true); });
+    };
+  }
+  function openUgcReport(r, done) {
+    var isPost = r.target_type === "post";
+    var body = '<div class="meta"><span>' + (isPost ? "글" : "댓글") + " #" + r.target_id + "</span><span>신고 " + r.n + "건</span><span>" + kst(r.first_at) + ' ~</span><span class="tag ' + (UGC_TAG[r.target_status] || "") + '">' + (UGC_ST[r.target_status] || "삭제된 대상") + "</span></div>" +
+      '<div class="sec"><h3>' + (isPost ? "신고된 글" : "신고된 댓글") + ' <span><a class="btn btn-g btn-sm" href="/community/board/post/?id=' + r.post_id + '" target="_blank" rel="noopener">사이트에서 보기 ↗</a></span></h3>' + (r.post_title ? '<div class="muted small" style="margin-bottom:4px">' + esc(r.post_title) + "</div>" : "") + '<div class="box" style="white-space:pre-wrap;max-height:300px;overflow:auto">' + esc(r.body || "(이미 삭제된 대상입니다)") + '</div><div class="muted small" style="margin-top:4px">글쓴이: ' + esc(r.nickname || "탈퇴한 회원") + "</div></div>" +
+      '<div class="sec"><h3>신고 사유</h3><div class="box">' + esc(r.reasons || "-") + (r.details ? '<div class="muted" style="margin-top:6px;white-space:pre-wrap">' + esc(r.details) + "</div>" : "") + "</div></div>" +
+      (r.status === "open" ? '<div class="sec"><h3>숨김 사유 (신고를 인정할 때)</h3><div class="field">' + reasonSelect() + "</div></div>" : '<div class="callout" style="margin-top:12px">처리 완료된 신고입니다' + (r.handled_by ? " (" + esc(r.handled_by) + ")" : "") + ".</div>");
+    var d = openDrawer("신고 확인", body, r.status === "open" ? '<button class="btn btn-s" data-act="dismiss">문제 없음 (그대로 둠)</button><button class="btn btn-d" data-act="hide">숨김 처리</button>' : "");
+    d.querySelectorAll("[data-act]").forEach(function (b) {
+      b.onclick = function () {
+        var hide = b.dataset.act === "hide";
+        api("ugcreports/resolve", { body: { target_type: r.target_type, target_id: r.target_id, action: hide ? "hide" : "dismiss", hidden_reason: hide ? d.querySelector("[data-reason]").value : "" } }).then(function (j) {
+          if (j.ok) { toast(hide ? "숨김 처리했습니다." : "문제 없음으로 처리했습니다."); closeDrawer(); done(); } else toast(errMsg(j), true);
+        });
+      };
+    });
+  }
+
+  // ============================================================ 영상 관리
+  var VIDEO_CATS = ["측정", "기본 이해", "생활습관", "음식", "약", "합병증·응급", "기타"];
+  function viewVideos(main) {
+    api("videos").then(function (j) {
+      if (!j.ok) { main.innerHTML = pageHead("영상 관리") + '<div class="callout bad">' + esc(errMsg(j)) + "</div>"; return; }
+      var rows = j.items.map(function (v) {
+        return '<tr class="click" data-id="' + v.id + '"><td style="width:132px"><img src="https://i.ytimg.com/vi/' + esc(v.youtube_id) + '/mqdefault.jpg" alt="" width="120" height="68" style="border-radius:6px;display:block;object-fit:cover" loading="lazy"></td><td><b>' + esc(v.title) + '</b><div class="muted small">' + esc(v.source || "") + (v.note ? " · " + esc(v.note) : "") + '</div></td><td class="hide-m">' + esc(v.category || "-") + '</td><td><span class="tag ' + (v.status === "visible" ? "t-green" : "") + '">' + (v.status === "visible" ? "공개" : "숨김") + '</span></td><td class="hide-m muted small">' + kstDate(v.created_at) + "</td></tr>";
+      }).join("");
+      main.innerHTML = pageHead("영상 관리", "‘영상으로 배우기’ 페이지에 보여 줄 유튜브 영상을 추가합니다. 여기서 추가한 영상은 기본으로 실려 있는 영상 뒤에 5분 안에 나타납니다.", '<a class="btn btn-s btn-sm" href="/videos/" target="_blank" rel="noopener">영상 페이지 열기</a><button class="btn btn-p btn-sm" id="add">영상 추가</button>') +
+        '<div class="callout warn" style="margin-bottom:14px"><b>등록 기준</b> — 질병관리청·식약처·건강보험공단 같은 공공기관, 대한고혈압학회 등 학회, 대학병원 공식 채널의 영상만 올립니다. 제품 광고, 특정 음식·보조제로 혈압을 고친다는 영상, 약을 끊으라고 권하는 영상은 올리지 않습니다. 올리기 전에 끝까지 직접 확인하세요.</div>' +
+        '<div class="table-wrap"><table><thead><tr><th></th><th>제목·출처</th><th class="hide-m">분류</th><th>상태</th><th class="hide-m">등록</th></tr></thead><tbody>' + (rows || '<tr><td colspan="5" class="empty">추가한 영상이 없습니다. 기본 영상은 영상 페이지에서 볼 수 있습니다.</td></tr>') + "</tbody></table></div>";
+      var reload = function () { viewVideos(main); };
+      document.getElementById("add").onclick = function () { openVideo(null, reload); };
+      main.querySelectorAll("tr[data-id]").forEach(function (tr) { tr.onclick = function () { openVideo(j.items.filter(function (x) { return String(x.id) === tr.dataset.id; })[0], reload); }; });
+    });
+  }
+  function openVideo(v, done) {
+    v = v || {};
+    var body = '<div class="field"><label>유튜브 주소</label><input data-url placeholder="https://www.youtube.com/watch?v=..." value="' + esc(v.youtube_id ? "https://www.youtube.com/watch?v=" + v.youtube_id : "") + '"><div class="hint">영상 페이지의 주소를 그대로 붙여 넣으세요.</div></div>' +
+      '<div data-pv style="margin-top:10px"></div>' +
+      '<div class="field" style="margin-top:10px"><label>제목</label><input data-title maxlength="120" value="' + esc(v.title || "") + '"></div>' +
+      '<div class="row2" style="margin-top:10px"><div class="field"><label>출처 (채널·기관명)</label><input data-source maxlength="60" placeholder="예: 대한고혈압학회" value="' + esc(v.source || "") + '"></div><div class="field"><label>분류</label><select data-cat>' + VIDEO_CATS.map(function (c) { return "<option" + (c === v.category ? " selected" : "") + ">" + c + "</option>"; }).join("") + "</select></div></div>" +
+      '<div class="field" style="margin-top:10px"><label>한 줄 소개 (선택)</label><input data-note maxlength="300" value="' + esc(v.note || "") + '"></div>' +
+      '<div class="row2" style="margin-top:10px"><div class="field"><label>정렬 순서 (클수록 앞)</label><input data-sort type="number" value="' + (v.sort || 0) + '"></div><div class="field"><label>상태</label><select data-st><option value="visible"' + (v.status !== "hidden" ? " selected" : "") + '>공개</option><option value="hidden"' + (v.status === "hidden" ? " selected" : "") + ">숨김</option></select></div></div>";
+    var d = openDrawer(v.id ? "영상 수정" : "영상 추가", body, (v.id ? '<div class="left"><button class="btn btn-d btn-sm" data-del>삭제</button></div>' : "") + '<button class="btn btn-p" data-save>' + (v.id ? "저장" : "추가") + "</button>");
+    var url = d.querySelector("[data-url]"), pv = d.querySelector("[data-pv]");
+    var show = function () {
+      var m = url.value.match(/(?:v=|youtu\.be\/|embed\/|shorts\/|live\/)([A-Za-z0-9_-]{11})/) || url.value.match(/^([A-Za-z0-9_-]{11})$/);
+      pv.innerHTML = m ? '<img src="https://i.ytimg.com/vi/' + m[1] + '/mqdefault.jpg" alt="영상 미리보기" width="240" height="135" style="border-radius:8px;display:block"> <a class="small" href="https://www.youtube.com/watch?v=' + m[1] + '" target="_blank" rel="noopener">유튜브에서 열어 확인 ↗</a>' : "";
+    };
+    url.oninput = show; show();
+    d.querySelector("[data-save]").onclick = function () {
+      var payload = { url: url.value.trim(), title: d.querySelector("[data-title]").value, source: d.querySelector("[data-source]").value, category: d.querySelector("[data-cat]").value, note: d.querySelector("[data-note]").value, sort: d.querySelector("[data-sort]").value, status: d.querySelector("[data-st]").value };
+      api("videos" + (v.id ? "/" + v.id : ""), { body: payload }).then(function (j) { if (j.ok) { toast("저장했습니다. 5분 안에 영상 페이지에 반영됩니다."); closeDrawer(); done(); } else toast(errMsg(j), true); });
+    };
+    var del = d.querySelector("[data-del]");
+    if (del) del.onclick = function () { confirmBox("영상을 목록에서 삭제할까요?", "<p>영상 페이지에서 사라집니다.</p>", "삭제", true).then(function (ok) { if (ok) api("videos/" + v.id + "/delete", { body: {} }).then(function (j) { if (j.ok) { toast("삭제했습니다."); closeDrawer(); done(); } else toast(errMsg(j), true); }); }); };
   }
 
   // ============================================================ 시작

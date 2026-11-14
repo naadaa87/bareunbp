@@ -1,4 +1,4 @@
--- 바른혈압 D1 스키마 (버전 3)
+-- 바른혈압 D1 스키마 (버전 4)
 --
 -- 이 파일을 직접 실행하지 않아도 됩니다.
 -- D1을 DB라는 이름으로 연결해 두면, 사이트의 API가 첫 요청 때 아래 표를 자동으로 만들고
@@ -137,3 +137,121 @@ CREATE TABLE IF NOT EXISTS stats_daily (
   PRIMARY KEY (day, kind, key)
 );
 CREATE INDEX IF NOT EXISTS idx_stats_kind ON stats_daily(kind, day);
+
+-- ============================================================
+-- 버전 4: 회원 · 저장한 글 · 자유게시판 · 영상
+-- ============================================================
+
+-- 회원. 비밀번호 원문은 서버에 오지 않는다.
+-- 브라우저가 PBKDF2로 변환한 값을 받아 pw_salt로 한 번 더 HMAC 처리한 값만 pw_hash에 저장한다.
+CREATE TABLE IF NOT EXISTS users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  username TEXT NOT NULL UNIQUE,            -- 로그인 아이디 (탈퇴 시 deleted_... 로 바꿈)
+  nickname TEXT,                            -- 게시판 표시 이름 (탈퇴 시 NULL)
+  email TEXT,                               -- 선택. 비밀번호 분실 시 본인 확인용
+  pw_hash TEXT,
+  pw_salt TEXT,
+  pw_ver INTEGER NOT NULL DEFAULT 1,
+  recovery_hash TEXT,                       -- 복구 코드의 변환값
+  created_at TEXT NOT NULL,
+  last_login_at TEXT,
+  status TEXT NOT NULL DEFAULT 'active',    -- active | suspended | deleted
+  session_ver INTEGER NOT NULL DEFAULT 1,   -- 올리면 기존 로그인이 모두 풀린다
+  must_change_pw INTEGER NOT NULL DEFAULT 0,
+  agreed_at TEXT,
+  memo TEXT,                                -- 운영자 메모 (비공개)
+  updated_at TEXT,
+  handled_by TEXT
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_nickname ON users(nickname);
+
+-- 서버가 스스로 만든 비밀값 (회원 로그인 쿠키 서명용). 내보내기에 포함하지 않는다.
+CREATE TABLE IF NOT EXISTS app_secrets (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+
+-- 저장한 글 (key: 글 주소 또는 post:<게시글 번호>)
+CREATE TABLE IF NOT EXISTS bookmarks (
+  user_id INTEGER NOT NULL,
+  key TEXT NOT NULL,
+  title TEXT,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (user_id, key)
+);
+
+-- 자유게시판 글
+CREATE TABLE IF NOT EXISTS posts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER,
+  author_label TEXT,                        -- 공지일 때 '바른혈압 운영팀'
+  category TEXT NOT NULL,
+  title TEXT NOT NULL,
+  body TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT,
+  status TEXT NOT NULL DEFAULT 'visible',   -- visible | hidden | deleted
+  pinned INTEGER NOT NULL DEFAULT 0,
+  views INTEGER NOT NULL DEFAULT 0,
+  like_count INTEGER NOT NULL DEFAULT 0,
+  comment_count INTEGER NOT NULL DEFAULT 0,
+  report_count INTEGER NOT NULL DEFAULT 0,
+  hidden_reason TEXT,
+  handled_by TEXT,
+  ip_hash TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_posts_list ON posts(status, pinned, id);
+CREATE INDEX IF NOT EXISTS idx_posts_user ON posts(user_id);
+
+-- 댓글
+CREATE TABLE IF NOT EXISTS comments (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  post_id INTEGER NOT NULL,
+  user_id INTEGER,
+  body TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'visible',   -- visible | hidden | deleted
+  report_count INTEGER NOT NULL DEFAULT 0,
+  hidden_reason TEXT,
+  handled_by TEXT,
+  ip_hash TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_comments_post ON comments(post_id, id);
+CREATE INDEX IF NOT EXISTS idx_comments_user ON comments(user_id);
+
+-- 공감 (글 하나에 회원당 한 번)
+CREATE TABLE IF NOT EXISTS post_likes (
+  post_id INTEGER NOT NULL,
+  user_id INTEGER NOT NULL,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (post_id, user_id)
+);
+
+-- 글·댓글 신고 (같은 대상을 같은 회원이 두 번 신고할 수 없음. 서로 다른 5명이 신고하면 자동 임시 숨김)
+CREATE TABLE IF NOT EXISTS ugc_reports (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  target_type TEXT NOT NULL,                -- post | comment
+  target_id INTEGER NOT NULL,
+  user_id INTEGER NOT NULL,
+  reason TEXT NOT NULL,
+  detail TEXT,
+  created_at TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'open',      -- open | resolved
+  handled_by TEXT,
+  handled_at TEXT,
+  UNIQUE (target_type, target_id, user_id)
+);
+
+-- 운영자가 관리자 콘솔에서 추가한 영상 (기본 영상은 사이트 페이지에 들어 있음)
+CREATE TABLE IF NOT EXISTS videos (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  youtube_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  source TEXT,
+  category TEXT,
+  note TEXT,
+  status TEXT NOT NULL DEFAULT 'visible',   -- visible | hidden
+  sort INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  created_by TEXT
+);

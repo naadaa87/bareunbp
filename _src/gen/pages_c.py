@@ -34,12 +34,13 @@ def related_block(items, base="/info/", title="함께 읽으면 좋은 글"):
     return f'<aside class="related no-print"><h2>{title}</h2><ul>{lis}</ul></aside>'
 
 
-def article_ld(title, desc, path, kw=None):
+def article_ld(title, desc, path, kw=None, date=None):
+    date = date or REVIEW_DATE
     return {"@context": "https://schema.org", "@type": ["Article", "MedicalWebPage"], "headline": title[:110], "description": desc,
-            "datePublished": FIRST_PUBLISHED, "dateModified": REVIEW_DATE, "inLanguage": "ko",
+            "datePublished": FIRST_PUBLISHED if date == REVIEW_DATE else date, "dateModified": date, "inLanguage": "ko",
             "author": {"@type": "Organization", "name": BRAND + " 편집팀", "url": SITE + "/about/"}, "publisher": PUBLISHER,
             "mainEntityOfPage": SITE + path, "about": MEDCOND, "keywords": ", ".join(kw or []),
-            "image": SITE + "/assets/img/og.jpg", "lastReviewed": REVIEW_DATE}
+            "image": SITE + "/assets/img/og.jpg", "lastReviewed": date}
 
 
 # ============================================================
@@ -51,7 +52,8 @@ def info_article(a):
     import re
     for m in re.finditer(r"<h2[^>]*>(.*?)</h2>", a["body"]):
         toc_items.append(re.sub(r"<[^>]+>", "", m.group(1)))
-    ld = [article_ld(a["title"], a["summary"], path, a.get("keywords"))]
+    date = a.get("date", REVIEW_DATE)
+    ld = [article_ld(a["title"], a["summary"], path, a.get("keywords"), date)]
     if a.get("faq"):
         ld.append(faq_ld(a["faq"]))
     body = page_head(a["title"], a["summary"], [("/", "홈"), ("/info/", "건강정보"), (f"/info/#{a['cat']}", ART.CAT_NAME[a["cat"]]), (None, "본문")], path) + f"""
@@ -59,8 +61,8 @@ def info_article(a):
 <div class="wrap">
 <div class="article-layout">
 <article class="article">
-<div class="article-meta"><span>작성 바른혈압 편집팀</span><span>{review_badge()}</span><span>최종 검토 <time datetime="{REVIEW_DATE}">{REVIEW_DATE}</time></span></div>
-{evidence(a["kind"], a["certainty"], a["target"])}
+<div class="article-meta"><span>작성 바른혈압 편집팀</span><span>{review_badge()}</span><span>최종 검토 <time datetime="{date}">{date}</time></span></div>
+{evidence(a["kind"], a["certainty"], a["target"], date=date)}
 {a["body"]}
 {faq_block(a.get("faq"))}
 {article_cta()}
@@ -80,7 +82,7 @@ def info_article(a):
 
 def info_index():
     tabs = '<div class="tabs" id="tabs"><button aria-pressed="true" data-cat="all">전체</button>' + "".join(f'<button aria-pressed="false" data-cat="{k}">{v}</button>' for k, v in ART.CATEGORIES) + "</div>"
-    items = "".join(f'<li data-cat="{a["cat"]}"><a href="/info/{a["slug"]}.html"><span class="cat">{ART.CAT_NAME[a["cat"]]}</span><span><b>{a["title"]}</b><span>{a["summary"]}</span></span><span class="date">{REVIEW_DATE}</span></a></li>' for a in ART.ARTICLES)
+    items = "".join(f'<li data-cat="{a["cat"]}"><a href="/info/{a["slug"]}.html"><span class="cat">{ART.CAT_NAME[a["cat"]]}</span><span><b>{a["title"]}</b><span>{a["summary"]}</span></span><span class="date">{a.get("date", REVIEW_DATE)}</span></a></li>' for a in ART.ARTICLES)
     popular = [("reading-numbers", "혈압 정상수치 표"), ("home-measurement", "혈압 재는 법"), ("lifestyle-effects", "혈압 낮추는 방법"), ("symptoms", "고혈압 증상"), ("medications", "혈압약 종류·부작용"), ("hypertensive-crisis", "혈압 180 이상일 때")]
     pop = "".join(f'<a class="chip" href="/info/{s}.html">{t}</a>' for s, t in popular)
     ld = {"@context": "https://schema.org", "@type": "ItemList", "name": "바른혈압 건강정보", "itemListElement": [{"@type": "ListItem", "position": i + 1, "url": f"{SITE}/info/{a['slug']}.html", "name": a["title"]} for i, a in enumerate(ART.ARTICLES)]}
@@ -98,6 +100,12 @@ def info_index():
 {tabs}
 <ul class="post-list" id="posts">{items}</ul>
 <p style="margin-top:20px">음식과 식단은 <a href="/food/">음식·식단</a>, 용어가 낯설다면 <a href="/glossary/">용어사전</a>, 짧은 답이 필요하면 <a href="/faq/">자주 묻는 질문</a>을 보세요.</p>
+<div class="grid grid--4" style="margin-top:22px">
+<a class="pillar" href="/videos/"><div class="ico">{ICONS["video"]}</div><h3>영상으로 배우기</h3><p>학회·대학병원이 만든 영상 30편을 주제별로</p></a>
+<a class="pillar" href="/stats/"><div class="ico">{ICONS["chart"]}</div><h3>숫자로 보는 고혈압</h3><p>유병률, 조절률, 나트륨 섭취량 최신 통계</p></a>
+<a class="pillar" href="/news/"><div class="ico">{ICONS["doc"]}</div><h3>고혈압 소식</h3><p>주요 발표와 지침 변화를 날짜순으로</p></a>
+<a class="pillar" href="/library/"><div class="ico">{ICONS["library"]}</div><h3>공신력 있는 자료실</h3><p>학회·공공기관·국제기구 자료 모음</p></a>
+</div>
 </div>
 </section>
 {cta_band()}
@@ -300,13 +308,15 @@ def food_body(slug):
 <h2>건강기능식품보다 먼저</h2>
 <p>지침이 정리한 생활요법(식단, 소금 제한, 운동, 절주, 체중 감량)의 효과가 더 크고 근거도 확실합니다. <a href="/info/lifestyle-effects.html">생활요법 효과 비교</a>를 먼저 보세요.</p>
 <h2>출처</h2>{sources([F.KHFF_2016, MFDS_HF, '농림축산식품부, 「‘혈압조절’에 도움을 주는 마늘, 고시형원료 기능성 인정받아」 — <a href="https://www.mafra.go.kr/bbs/mafra/68/331023/artclView.do" target="_blank" rel="noopener">mafra.go.kr</a>'])}"""
-    return ""
+    fp = next((x for x in F.FOOD_PAGES if x["slug"] == slug), None)
+    return (fp or {}).get("body") or ""
 
 
 def food_page(fp):
     path = f"/food/{fp['slug']}.html"
     body_html = food_body(fp["slug"])
-    ld = [article_ld(fp["title"], fp["summary"], path, fp.get("keywords"))]
+    date = fp.get("date", REVIEW_DATE)
+    ld = [article_ld(fp["title"], fp["summary"], path, fp.get("keywords"), date)]
     if fp.get("faq"):
         ld.append(faq_ld(fp["faq"]))
     others = [x for x in F.FOOD_PAGES if x["slug"] != fp["slug"]][:4]
@@ -316,8 +326,8 @@ def food_page(fp):
 <section class="section section--tight">
 <div class="wrap">
 <article class="article {'article--wide' if fp['slug'] in ('sodium-table', 'meal-plan', 'good-foods') else ''}">
-<div class="article-meta"><span>작성 바른혈압 편집팀</span><span>{review_badge()}</span><span>최종 검토 <time datetime="{REVIEW_DATE}">{REVIEW_DATE}</time></span></div>
-{evidence(fp["kind"], fp["certainty"], fp["target"])}
+<div class="article-meta"><span>작성 바른혈압 편집팀</span><span>{review_badge()}</span><span>최종 검토 <time datetime="{date}">{date}</time></span></div>
+{evidence(fp["kind"], fp["certainty"], fp["target"], date=date)}
 {body_html}
 {faq_block(fp.get("faq"))}
 </article>
@@ -389,7 +399,7 @@ def recipe_page(r):
     ld = {"@context": "https://schema.org", "@type": "Recipe", "name": r["name"], "description": r["desc"], "recipeYield": f"{r['serves']}인분",
           "totalTime": f"PT{mins}M", "recipeIngredient": r["ingredients"], "recipeInstructions": [{"@type": "HowToStep", "text": s} for s in r["steps"]],
           "recipeCategory": "저염식", "recipeCuisine": "한식", "keywords": "저염, 고혈압 식단, " + r["name"], "author": {"@type": "Organization", "name": BRAND},
-          "image": SITE + "/assets/img/photo-flatlay.jpg", "datePublished": REVIEW_DATE}
+          "image": SITE + "/assets/img/photo-flatlay.jpg", "datePublished": r.get("date", REVIEW_DATE)}
     others = "".join(f'<li><a href="/food/recipes/{x["slug"]}.html"><b>{x["name"]}</b><span>{x["desc"]}</span></a></li>' for x in F.RECIPES if x["slug"] != r["slug"])
     body = page_head(r["name"], r["desc"], [("/", "홈"), ("/food/", "음식·식단"), ("/food/recipes/", "저염 레시피"), (None, r["name"])], path) + f"""
 <section class="section section--tight">
@@ -420,7 +430,7 @@ def recipes_index():
 </div></section>
 {cta_band("레시피로 일주일을 채워 보세요", "아침·점심·저녁 예시와 장보기 목록이 있는 7일 식단입니다.", "/food/meal-plan.html", "7일 저염 식단 보기")}
 """
-    return page("저염 레시피 — 고혈압 식단에 맞춘 집밥", "저염 된장국, 간장 없는 나물, 생선구이, 두부조림, 잡곡밥 등 고혈압 식단에 맞춘 저염 레시피 10가지.", "/food/recipes/", body, jsonld=ld, keywords=["저염 레시피", "고혈압 레시피", "저염식 반찬", "싱겁게 맛있게"])
+    return page("저염 레시피 — 고혈압 식단에 맞춘 집밥", f"저염 된장국, 간장 없는 나물, 생선구이, 두부조림, 잡곡밥 등 고혈압 식단에 맞춘 저염 레시피 {len(F.RECIPES)}가지.", "/food/recipes/", body, jsonld=ld, keywords=["저염 레시피", "고혈압 레시피", "저염식 반찬", "싱겁게 맛있게"])
 
 
 # ============================================================
@@ -723,13 +733,18 @@ def community():
     cats = ["전체"] + sorted({c for c, _, _ in SEED_QNA})
     chips = "".join(f'<button aria-pressed="{"true" if i == 0 else "false"}" data-cat="{"all" if i == 0 else c}">{c}</button>' for i, c in enumerate(cats))
     ld = {"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": q, "acceptedAnswer": {"@type": "Answer", "text": __import__("re").sub(r"<[^>]+>", "", a)}} for _, q, a in SEED_QNA]}
-    body = page_head("커뮤니티", "같은 고민을 가진 사람들의 질문에 근거를 붙여 답하고, 경험을 나누고, 작은 습관을 함께 이어가는 공간입니다. 개인의 진단·약 조정은 답하지 않습니다.", [("/", "홈"), (None, "커뮤니티")], "/community/") + f"""
+    body = page_head("커뮤니티", "자유게시판에서 경험과 정보를 나누고, 질문에는 편집팀이 근거를 붙여 답하고, 작은 습관을 함께 이어가는 공간입니다. 개인의 진단·약 조정은 답하지 않습니다.", [("/", "홈"), (None, "커뮤니티")], "/community/") + f"""
 <section class="section section--tight">
 <div class="wrap">
-<div class="grid grid--3 community-entry">
+<div class="grid grid--4 community-entry">
+<a class="pillar" href="/community/board/"><div class="ico">{ICONS["board"]}</div><h3>자유게시판</h3><p>경험과 정보를 편하게 나누는 곳. 회원이면 누구나 씁니다.</p></a>
 <a class="pillar" href="#qna"><div class="ico">{ICONS["chat"]}</div><h3>질문과 답변</h3><p>근거를 붙인 답변. 의료 조언은 하지 않습니다.</p></a>
 <a class="pillar" href="/community/challenges/"><div class="ico">{ICONS["flag"]}</div><h3>챌린지</h3><p>7일 재기, 국물 남기기, 30분 걷기, 술 없는 7일.</p></a>
 <a class="pillar" href="#story"><div class="ico">{ICONS["family"]}</div><h3>경험 나누기</h3><p>바꿔 본 습관과 그 과정을 나눕니다.</p></a>
+</div>
+<div class="card" style="margin-top:20px">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px"><h2 style="margin:0;font-size:1.2rem">자유게시판 새 글</h2><div style="display:flex;gap:8px"><a class="btn btn--secondary btn--sm" href="/community/board/">전체 보기</a><a class="btn btn--primary btn--sm" href="/community/board/write/">글쓰기</a></div></div>
+<ul class="board-latest" id="board-latest"><li style="padding:14px 4px;color:var(--muted)">불러오는 중…</li></ul>
 </div>
 </div>
 </section>
@@ -783,7 +798,7 @@ def community():
 </form>
 </div>
 </section>
-<section class="section">
+<section class="section" id="letter">
 <div class="wrap">
 <div class="split">
 <div><h2>주간 혈압 레터</h2><p>이번 주에 확인할 것 하나를 짧게 보냅니다. 새로 올라온 질문과 답변, 팩트체크, 계절별 관리 포인트를 담습니다.</p>{newsletter_form()}</div>
@@ -798,6 +813,6 @@ fetch('/api/qna').then(function(r){return r.ok?r.json():null}).then(function(j){
 ul.innerHTML=j.items.map(function(q){var story=q.category==='경험담';return '<li data-cat="'+esc(q.category||'')+'"><div class="qh"><b>'+(story?'경험':esc(q.category||''))+'</b><span>'+esc(q.nickname||'')+' · '+(q.created_at||'').slice(0,10)+'</span></div><div class="q">'+esc(q.question)+'</div>'+(q.answer?'<div class="a"><b>답변'+(q.reviewed?' <span class="review-status review-status--done" style="font-size:.72rem;padding:1px 8px;margin-left:4px">감수자 검토</span>':'')+'</b>'+(window.bpRenderAnswer?bpRenderAnswer(q.answer):esc(q.answer))+'</div>':'')+'</li>'}).join('');}).catch(function(){});
 var tabs=document.querySelectorAll('#qna-cat button');tabs.forEach(function(b){b.addEventListener('click',function(){var c=b.dataset.cat;tabs.forEach(function(x){x.setAttribute('aria-pressed',x===b?'true':'false')});document.querySelectorAll('#qna-seed li,#qna-live li').forEach(function(li){li.style.display=(c==='all'||li.dataset.cat===c)?'':'none'})})});
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}})();
-</script>"""
+</script><script src="/assets/js/board.js"></script>"""
     return page("커뮤니티 — 고혈압 질문과 답변, 챌린지, 경험 나누기", "고혈압 관리에 관한 질문에 근거를 붙여 답하고, 혈압 관리 챌린지와 경험을 나누는 공간. 의료 조언 없이 진료 때 무엇을 물어볼지 안내합니다.", "/community/", body, jsonld=ld, extra_js=js,
                 keywords=["고혈압 커뮤니티", "혈압 질문", "고혈압 카페", "혈압 관리 후기", "고혈압 상담"])

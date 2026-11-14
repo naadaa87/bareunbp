@@ -4,11 +4,15 @@ Disallow: /api/
 Disallow: /search/
 Disallow: /admin/
 Disallow: /_src/
+Disallow: /account/
+Disallow: /my/
 
 User-agent: Yeti
 Allow: /
 Disallow: /api/
 Disallow: /admin/
 Disallow: /_src/
+Disallow: /account/
+Disallow: /my/
 
 Sitemap: https://bareunbp.com/sitemap.xml
