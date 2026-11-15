@@ -7,9 +7,10 @@ BRAND = "바른혈압"
 TAGLINE = "올바른 정보, 건강한 오늘"
 REVIEW_DATE = "2026-11-07"
 FIRST_PUBLISHED = "2026-09-04"
-NEW_DATE = "2026-11-14"      # 3차 확충분의 작성·검토일
+NEW_DATE = "2026-11-14"
+LAUNCH_DATE = "2026-11-16"   # 정식 오픈일      # 3차 확충분의 작성·검토일
 # 검색엔진 소유확인 코드 — 발급받으면 따옴표 안에 넣고 다시 빌드 (README 참고)
-NAVER_VERIFY = ""
+NAVER_VERIFY = "c319690d7b48cb8034329f4bbce2c30dcc63eab2"   # 네이버 서치어드바이저 (https://bareunbp.com)
 GOOGLE_VERIFY = ""
 # 빌드 결과는 저장소 루트(= Cloudflare Pages 배포 폴더)에 기록
 OUT = os.environ.get("BP_OUT") or os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -141,7 +142,7 @@ def head(title, desc, path, og_image="/assets/img/og.jpg", jsonld=None, noindex=
 
 def header():
     items = "".join(f'<a href="{h}">{t}</a>' for h, t in NAV)
-    return f"""<div class="notice-bar"><div class="wrap"><span>베타 운영 중 — 의료진 감수 체계를 갖추는 중이며, 감수가 끝난 글에는 감수자가 표기됩니다. <a href="/about/#review">운영 원칙 보기</a></span><span class="no-print">이 사이트는 의료기관이 아닙니다</span></div></div>
+    return f"""<div class="notice-bar"><div class="wrap"><span>글마다 근거와 최종 검토일을 밝히고, 의료진 감수가 끝난 글에는 감수자를 표기합니다. <a href="/about/#review">운영 원칙 보기</a></span><span class="no-print">이 사이트는 의료기관이 아닙니다</span></div></div>
 <header class="site-header">
 <div class="wrap">
 <a class="brand" href="/" aria-label="{BRAND} 홈"><img src="/assets/img/logo.png" srcset="/assets/img/logo@2x.png 2x" alt="{BRAND}" width="109" height="40"></a>

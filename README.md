@@ -158,8 +158,8 @@
 
 ### 네이버 서치어드바이저
 1. https://searchadvisor.naver.com 로그인 → **웹마스터 도구** → 사이트 등록에 `https://도메인` 입력
-2. 소유확인 방식에서 **HTML 파일 업로드**를 고르고 파일(예: `naverxxxx.html`)을 내려받습니다.
-3. 그 파일을 GitHub 저장소 **맨 위 폴더**에 업로드(Add file → Upload files → Commit) → 1~2분 뒤 네이버에서 **소유확인** 클릭
+2. 소유확인 방식은 **HTML 태그**를 씁니다. (Cloudflare Pages는 `.html` 주소를 확장자 없는 주소로 옮기기 때문에 HTML 파일 방식은 실패할 수 있습니다.)
+3. 태그의 content 값을 `_src/gen/base.py`의 `NAVER_VERIFY`에 넣고 다시 생성하면 모든 페이지에 들어갑니다. **bareunbp.com은 2026-11-16에 등록을 마쳤습니다.**
 4. 왼쪽 메뉴 **요청 → 사이트맵 제출**: `https://도메인/sitemap.xml`
 5. **요청 → RSS 제출**: `https://도메인/rss.xml`
 6. **검증 → 웹 페이지 최적화**로 홈 주소를 한 번 점검합니다.

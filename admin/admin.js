@@ -622,7 +622,7 @@
     api("settings").then(function (j) {
       if (!j.ok) { main.innerHTML = pageHead("사이트 공지") + '<div class="callout bad">' + esc(errMsg(j)) + "</div>"; return; }
       var s = j.items || {}, v = function (k) { return s[k] ? s[k].value || "" : ""; };
-      main.innerHTML = pageHead("사이트 공지", "모든 페이지 맨 위의 공지 띠 문구를 바꿉니다. 끄면 기본 문구(베타 운영 안내)가 표시됩니다. 반영까지 최대 5분 걸립니다.") +
+      main.innerHTML = pageHead("사이트 공지", "모든 페이지 맨 위의 공지 띠 문구를 바꿉니다. 끄면 기본 문구(근거·감수 표기 안내)가 표시됩니다. 반영까지 최대 5분 걸립니다.") +
         '<div class="card" style="max-width:760px"><div class="stack">' +
         '<label class="check"><input type="checkbox" id="n-on"' + (v("notice_on") === "1" ? " checked" : "") + '> <span><b>공지 켜기</b></span></label>' +
         '<div class="field"><label for="n-t">공지 문구 (140자 이내)</label><input id="n-t" maxlength="140" value="' + esc(v("notice_text")) + '" placeholder="예: 2026년 고혈압 진료지침 개정 내용을 반영해 정보를 갱신했습니다."></div>' +
@@ -632,7 +632,7 @@
         '<div class="callout" style="max-width:760px;margin-top:14px">공지는 짧고 사실만 씁니다. 효과·치료를 암시하는 문구, 특정 제품·병원 홍보는 쓰지 않습니다.</div>';
       var pv = function () {
         var t = document.getElementById("n-t").value.trim(), l = document.getElementById("n-l").value.trim(), on = document.getElementById("n-on").checked;
-        document.getElementById("n-pv").innerHTML = on && t ? esc(t) + (l ? ' <u>자세히</u>' : "") : "베타 운영 중 — 의료진 감수 체계를 갖추는 중이며, 감수가 끝난 글에는 감수자가 표기됩니다. <u>운영 원칙 보기</u> <span style=\"opacity:.7\">(기본 문구)</span>";
+        document.getElementById("n-pv").innerHTML = on && t ? esc(t) + (l ? ' <u>자세히</u>' : "") : "글마다 근거와 최종 검토일을 밝히고, 의료진 감수가 끝난 글에는 감수자를 표기합니다. <u>운영 원칙 보기</u> <span style=\"opacity:.7\">(기본 문구)</span>";
       };
       ["n-t", "n-l", "n-on"].forEach(function (id) { document.getElementById(id).oninput = pv; document.getElementById(id).onchange = pv; }); pv();
       document.getElementById("n-save").onclick = function () {
