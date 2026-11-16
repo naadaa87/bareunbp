@@ -85,11 +85,14 @@ def info_index():
     items = "".join(f'<li data-cat="{a["cat"]}"><a href="/info/{a["slug"]}.html"><span class="cat">{ART.CAT_NAME[a["cat"]]}</span><span><b>{a["title"]}</b><span>{a["summary"]}</span></span><span class="date">{a.get("date", REVIEW_DATE)}</span></a></li>' for a in ART.ARTICLES)
     popular = [("reading-numbers", "혈압 정상수치 표"), ("home-measurement", "혈압 재는 법"), ("lifestyle-effects", "혈압 낮추는 방법"), ("symptoms", "고혈압 증상"), ("medications", "혈압약 종류·부작용"), ("hypertensive-crisis", "혈압 180 이상일 때")]
     pop = "".join(f'<a class="chip" href="/info/{s}.html">{t}</a>' for s, t in popular)
+    fresh = [a for a in ART.ARTICLES if a.get("daily")][:5]
+    fresh_html = ('<div class="fresh-box"><h2>새로 올라온 글</h2><ul class="post-list">' + "".join(f'<li><a href="/info/{a["slug"]}.html"><span class="cat">{ART.CAT_NAME[a["cat"]]}</span><span><b>{a["title"]}</b><span>{a["summary"]}</span></span><span class="date">{a["date"]}</span></a></li>' for a in fresh) + '</ul></div>') if fresh else ""
     ld = {"@context": "https://schema.org", "@type": "ItemList", "name": "바른혈압 건강정보", "itemListElement": [{"@type": "ListItem", "position": i + 1, "url": f"{SITE}/info/{a['slug']}.html", "name": a["title"]} for i, a in enumerate(ART.ARTICLES)]}
     body = page_head("고혈압 건강정보", "학회 진료지침과 공공기관 자료를 근거로, 사람들이 실제로 묻는 질문 단위로 다시 씁니다. 모든 글은 한 줄 답 → 핵심 근거 → 행동 체크리스트 → 출처 → 최종 검토일 구조를 따릅니다.", [("/", "홈"), (None, "건강정보")], "/info/") + f"""
 <section class="section section--tight">
 <div class="wrap">
 <div class="chips" aria-label="많이 찾는 주제">{pop}</div>
+{fresh_html}
 <div class="evidence"><dl>
 <div><dt>근거 유형</dt><dd>진료지침 / 공공기관 / 체계적 문헌고찰 / 단일 연구 / 전문가 해설 / 근거 부족</dd></div>
 <div><dt>근거 확실성</dt><dd>높음 / 중간 / 낮음 / 판단 어려움</dd></div>

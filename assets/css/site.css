@@ -788,3 +788,8 @@ input[type=file] { max-width: 100%; }
 #video-more:not(:empty) { margin-top: 44px; }
 #video-more h2 { margin-bottom: 14px; }
 #video-more .video-grid + h2 { margin-top: 40px; }
+
+/* 건강정보 목록 — 새로 올라온 글 */
+.fresh-box { margin: 18px 0 26px; padding: 18px 20px 6px; border: 1px solid var(--line); border-radius: 14px; background: #fff; }
+.fresh-box h2 { font-size: 1.05rem; margin: 0 0 6px; color: var(--navy); }
+.fresh-box .post-list { margin: 0; }

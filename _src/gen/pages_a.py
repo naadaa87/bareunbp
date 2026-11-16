@@ -23,7 +23,11 @@ def home():
     ]
     jt = "".join(f'<a href="{h}"><div><b>{t}</b><span>{d}</span></div><span class="go">{g}</span></a>' for t, d, h, g in jtbd)
 
-    latest = "".join(f'<li><a href="/info/{a["slug"]}.html"><span class="cat">{CAT_NAME[a["cat"]]}</span><span><b>{a["title"]}</b><span>{a["summary"]}</span></span><span class="date">{a.get("date", REVIEW_DATE)}</span></a></li>' for a in [x for x in ARTICLES if x['slug'] in ('reading-numbers','first-high-reading','home-measurement','lifestyle-effects','stroke-signs','taking-meds')])
+    import daily
+    _fresh = daily.recent(6)
+    _base = [(f"/info/{a['slug']}.html", CAT_NAME[a["cat"]], a["title"], a["summary"], a.get("date", REVIEW_DATE)) for a in ARTICLES if a['slug'] in ('reading-numbers','first-high-reading','home-measurement','lifestyle-effects','stroke-signs','taking-meds')]
+    _seen = {x[0] for x in _fresh}
+    latest = "".join(f'<li><a href="{u}"><span class="cat">{c}</span><span><b>{t}</b><span>{s}</span></span><span class="date">{d}</span></a></li>' for u, c, t, s, d in (_fresh + [x for x in _base if x[0] not in _seen])[:6])
     fcs = "".join(f'<li><a href="/factcheck/{f["slug"]}.html"><span><q>{f["claim"]}</q><span>{f["summary"]}</span></span><span class="verdict {VERDICTS[f["verdict"]][1]}">{VERDICTS[f["verdict"]][0]}</span></a></li>' for f in FACTCHECKS[:4])
 
     body = f"""

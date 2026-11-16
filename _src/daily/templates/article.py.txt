@@ -1,0 +1,36 @@
+# -*- coding: utf-8 -*-
+# 매일 발행 — YYYY-MM-DD (요일, 건강정보) — 이 파일을 _src/daily/posts/YYYY-MM-DD-slug.py 로 복사해서 쓴다
+from base import answer, checklist, sources, caution, emergency, table
+from articles import KSH2026, KDCA            # 이미 있는 출처 상수는 가져다 쓴다
+from articles3a import KDCA_HTN
+
+# 새 출처는 이렇게 정의한다 (실제로 읽은 페이지만)
+NEW_SRC = '기관명, 「자료 제목」(발표일) — <a href="https://..." target="_blank" rel="noopener">사이트 이름</a>'
+
+ITEM = dict(
+    type="article",
+    cat="diagnosis",   # diagnosis 진단·기준 / symptom 증상·응급 / measure 측정 / life 생활 관리 / meds 약물 / risk 합병증·검사 / special 생애주기·특수상황 / care 진료·제도
+    title="핵심 키워드 — 독자가 궁금한 것을 부제로",
+    summary="첫 문장에 답 또는 핵심 숫자. 60~170자.",
+    keywords=["핵심 키워드", "비슷한 검색어", "긴 검색어", "관련 검색어"],
+    tags=["태그1", "태그2"],                       # 관련 글 연결에 쓰인다
+    kind="진료지침 · 공공기관", certainty="높음", target="이 글이 맞는 사람",
+    body=answer("질문에 대한 두세 문장짜리 답.") + """
+<h2>소제목 1 — 검색어처럼</h2>
+<p>...</p>
+""" + table(["항목", "내용"], [["...", "..."]]) + """
+<h2>소제목 2</h2>
+""" + checklist(["행동 1", "행동 2 <a href=\\"/check7/\\">7일 혈압 기록</a>"]) + """
+<h2>소제목 3</h2>
+<p>... <a href="/info/reading-numbers.html">혈압 정상수치 표</a></p>
+""" + caution("약은 스스로 바꾸지 말고 의료진과 상의하세요.") + "<h2>출처</h2>" + sources([KDCA_HTN, NEW_SRC]),
+    faq=[
+        ("실제 검색창에 치는 질문?", "두세 문장 답."),
+        ("두 번째 질문?", "답."),
+        ("세 번째 질문?", "답."),
+    ],
+)
+
+# 선택
+# GLOSSARY = [("용어", "English", "한 줄 설명", "/info/slug.html")]
+# FAQ = [("측정", "질문?", "답 <a href=\"/info/slug.html\">관련 글</a>")]

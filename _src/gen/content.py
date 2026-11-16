@@ -56,6 +56,10 @@ from base import NEW_DATE
 for _it in ARTICLES3A + ARTICLES3B + FACTCHECKS3 + FOOD3 + RECIPES3:
     _it.setdefault("date", NEW_DATE)
 
+# ---- 매일 발행 (_src/daily/posts) — 발행일이 오늘 이하인 글만, 최신 글이 앞으로
+import daily
+daily.apply()
+
 # FAQ는 분류별로 모아 보여 주므로 같은 분류끼리 붙여 정렬한다
 _faq_order = []
 for c, _, _ in faq.FAQ:

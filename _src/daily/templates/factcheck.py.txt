@@ -1,0 +1,21 @@
+# -*- coding: utf-8 -*-
+# 매일 발행 — YYYY-MM-DD (수, 팩트체크)
+from base import checklist, sources
+from articles import KSH2026
+from articles3a import KDCA_HTN
+
+ITEM = dict(
+    type="factcheck",
+    claim="사람들 사이에 도는 주장을 그대로 (8~45자)",
+    verdict="partial",      # ok 근거가 충분함 / partial 일부만 맞음 / insuff 근거가 불충분함 / contra 현재 근거와 다름 / doctor 의료진 판단 필요
+    summary="판정 이유를 한두 문장으로 (50~170자).",
+    conditions="이 판정이 달라지는 조건이나 예외.",
+    body="""
+<h2>왜 이런 판정인가</h2>
+<p>...</p>
+<h2>오해가 생긴 이유</h2>
+<p>...</p>
+<h2>정리</h2>
+""" + checklist(["...", "... <a href=\\"/info/slug.html\\">관련 글</a>", "..."]),
+    srcs=[KDCA_HTN, KSH2026],   # 실제 읽은 출처 2개 이상
+)

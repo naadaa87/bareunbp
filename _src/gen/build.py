@@ -110,7 +110,7 @@ write("/sitemap.xml", "\n".join(sm) + "\n")
 # ---------- rss.xml ----------
 KST = timezone(timedelta(hours=9))
 def rfc(d):
-    return format_datetime(datetime.strptime(d, "%Y-%m-%d").replace(hour=9, tzinfo=KST))
+    return format_datetime(datetime.strptime(d, "%Y-%m-%d").replace(hour=9, minute=30, tzinfo=KST))
 pub = rfc(NEW_DATE)
 feed = []
 for a in ARTICLES:
