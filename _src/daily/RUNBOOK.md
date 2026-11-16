@@ -39,6 +39,7 @@ cd ../.. && git add -A && git commit -m "발행: <글 제목>" && git push origi
 - 커밋 작성자는 `git -c user.name="naadaa87" -c user.email="naadaa87@users.noreply.github.com" commit ...`로 한다.
 - push가 거절되면 `git pull --rebase` 후 다시 `build.py`를 돌리고 한 번 더 올린다.
 - 바뀐 것이 없다면(이미 발행됨) 커밋하지 않고 넘어간다.
+- 올린 뒤 2~3분이면 Cloudflare에 배포되고, GitHub Actions가 새 주소를 네이버·빙(IndexNow)에 알린다. 3분쯤 뒤 WebFetch로 `https://bareunbp.com/<주소>`를 열어 제목이 보이는지 확인한다.
 
 **오늘 파일이 없으면** 아래 2번 절차로 오늘 날짜 글을 쓴 뒤 위 명령으로 발행한다.
 
