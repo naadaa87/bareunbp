@@ -7,6 +7,7 @@ from content import related
 from articles import KSH2026, KDCA, WHO_NA, MFDS_HF
 from articles2 import KSH2018_LIFE, LIFE_TABLE
 import food as F
+import mall as MALL
 from glossary import GLOSSARY
 from faq import FAQ
 
@@ -65,6 +66,7 @@ def info_article(a):
 {evidence(a["kind"], a["certainty"], a["target"], date=date)}
 {a["body"]}
 {faq_block(a.get("faq"))}
+{MALL.related_box(path, a["title"] + " " + " ".join(a.get("keywords") or []))}
 {article_cta()}
 <p class="fine">이 글에서 잘못된 내용을 발견하셨나요? <a href="/factcheck/#report">정정 요청</a>을 보내주시면 확인 후 <a href="/policy/corrections.html">정정 이력</a>에 공개합니다.</p>
 </article>
@@ -333,6 +335,7 @@ def food_page(fp):
 {evidence(fp["kind"], fp["certainty"], fp["target"], date=date)}
 {body_html}
 {faq_block(fp.get("faq"))}
+{MALL.related_box(path, fp["title"] + " " + " ".join(fp.get("keywords") or []))}
 </article>
 <aside class="related no-print"><h2>음식·식단 더 보기</h2><ul>{rel}</ul></aside>
 </div>
@@ -457,7 +460,7 @@ def products():
 <section class="section section--tight"><div class="wrap">
 <div class="evidence" style="margin-top:0"><dl>
 <div><dt>근거 유형</dt><dd>진료지침 · 전문가 해설</dd></div><div><dt>근거 확실성</dt><dd class="cert--mid">중간</dd></div>
-<div><dt>적용 대상</dt><dd>가정에서 혈압을 관리하는 성인</dd></div><div><dt>최종 검토일</dt><dd>{REVIEW_DATE}</dd></div><div><dt>이해상충</dt><dd>광고·제휴 없음</dd></div>
+<div><dt>적용 대상</dt><dd>가정에서 혈압을 관리하는 성인</dd></div><div><dt>최종 검토일</dt><dd>{REVIEW_DATE}</dd></div><div><dt>이해상충</dt><dd>이 페이지 제휴 링크 없음</dd></div>
 </dl></div>
 <div class="table-scroll"><table class="table"><thead><tr><th>용품</th><th>왜 필요한가</th><th>고를 때 확인할 것</th><th></th></tr></thead><tbody>{rows}</tbody></table></div>
 <h2>우선순위</h2>
@@ -467,7 +470,7 @@ def products():
 <li><span><b>약을 먹는다면 약 정리함</b>복약 확인은 <a href="/tools/meds/">복약 체크</a>로도 할 수 있습니다.</span></li>
 <li><span><b>주방 계량 도구</b>간을 숫자로 줄이는 연습에 도움이 됩니다.</span></li>
 </ol>
-{caution("바른혈압은 이 페이지에서 특정 제품을 추천하거나 판매하지 않으며 제휴 링크가 없습니다. 향후 제휴가 생기면 해당 위치에 명시하고 편집 평가와 분리합니다.", "독립성 원칙")}
+{caution("이 가이드는 제휴와 관계없이 쓴 편집 콘텐츠이며, 이 페이지에는 제휴 링크가 없습니다. 쿠팡 파트너스 제휴 상품은 따로 <a href=\"/mall/\">바른혈압몰</a>에 모아 두었고, 혈압계는 의료기기라 그곳에서도 판매 링크를 두지 않습니다.", "독립성 원칙")}
 </div></section>
 """
     return page("혈압 관리용품 가이드 — 혈압계, 커프, 기록지, 약 정리함, 염도계", "혈압 관리에 필요한 용품과 고를 때 확인할 점. 상완형 혈압계, 커프 크기, 기록지, 약 정리함, 계량스푼, 염도계, 저나트륨 조미료 주의사항.", "/products/", body,

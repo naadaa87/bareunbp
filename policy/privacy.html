@@ -30,7 +30,7 @@
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
-<link rel="stylesheet" href="/assets/css/site.css?v=8bbac78e">
+<link rel="stylesheet" href="/assets/css/site.css?v=da28728e">
 
 </head>
 <body>
@@ -38,7 +38,7 @@
 <header class="site-header">
 <div class="wrap">
 <a class="brand" href="/" aria-label="바른혈압 홈"><img src="/assets/img/logo.png" srcset="/assets/img/logo@2x.png 2x" alt="바른혈압" width="109" height="40"></a>
-<nav class="nav" aria-label="주요 메뉴"><a href="/measure/">바르게 재기</a><a href="/check7/">7일 기록</a><a href="/info/">건강정보</a><a href="/food/">음식·식단</a><a href="/factcheck/">팩트체크</a><a href="/tools/">도구</a><a href="/community/">커뮤니티</a><a href="/clinic/">진료 준비</a></nav>
+<nav class="nav" aria-label="주요 메뉴"><a href="/measure/">바르게 재기</a><a href="/check7/">7일 기록</a><a href="/info/">건강정보</a><a href="/food/">음식·식단</a><a href="/factcheck/">팩트체크</a><a href="/tools/">도구</a><a href="/community/">커뮤니티</a><a href="/clinic/">진료 준비</a><a href="/mall/">바른혈압몰</a></nav>
 <div class="header-cta">
 <a class="icon-btn" href="/search/" aria-label="사이트 검색"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></a>
 <a class="user-link" href="/account/login/" data-user-link aria-label="로그인"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span>로그인</span></a>
@@ -67,10 +67,10 @@
 </ul>
 <h2>3. 자동 수집 정보 (익명 이용 통계)</h2>
 <p>사이트를 개선하기 위해 다음 정보를 <b>날짜별 합계로만</b> 저장합니다.</p>
-<ul><li>방문한 페이지 주소</li><li>다른 사이트에서 들어온 경우 그 사이트의 도메인 (예: search.naver.com)</li><li>사이트 검색창에 입력한 검색어 (40자까지)</li><li>도구 이용 여부 — ‘기록 저장’, ‘리포트 인쇄’, ‘글 공유’, ‘영상 재생’처럼 어떤 기능을 썼는지의 이름</li></ul>
-<p>IP 주소, 쿠키 ID, 회원 아이디 같은 개인 식별자는 통계에 저장하지 않으며, <b>혈압·맥박 수치는 전송하지 않습니다.</b> 첫 방문 여부를 세기 위해 브라우저에 ‘방문함’ 표시 하나만 저장합니다. 브라우저의 추적 거부(Do Not Track) 또는 GPC 설정을 켜면 통계를 보내지 않습니다. 일별 통계는 400일이 지나면 삭제합니다.</p>
+<ul><li>방문한 페이지 주소</li><li>다른 사이트에서 들어온 경우 그 사이트의 도메인 (예: search.naver.com)과, 방문이 시작된 곳의 종류(검색엔진·SNS·직접 방문 등)</li><li>사이트 검색창에 입력한 검색어 (40자까지)</li><li>도구 이용 여부 — ‘기록 저장’, ‘리포트 인쇄’, ‘글 공유’, ‘영상 재생’처럼 어떤 기능을 썼는지의 이름</li><li>페이지에 머문 시간(화면에 보인 동안의 초)과 얼마나 아래까지 읽었는지(%)</li><li>버튼 이름, 바깥 링크의 도메인, 바른혈압몰 상품이 화면에 보이거나 눌린 횟수</li><li>그날·그 방문의 첫 페이지인지, 모바일과 PC 중 어느 쪽인지</li></ul>
+<p>IP 주소, 쿠키 ID, 회원 아이디 같은 개인 식별자는 통계에 저장하지 않으며, <b>혈압·맥박 수치는 전송하지 않습니다.</b> 처음 왔는지, 오늘 처음 본 페이지인지를 세기 위해 브라우저에 ‘방문함’ 표시, 오늘 날짜와 오늘 본 페이지 주소, 이번 방문에서 본 페이지 수만 저장합니다. 이 값들은 서버로 보내지 않고, 서버에는 ‘처음 여부’만 전달되어 날짜별 합계에 더해집니다. 브라우저의 추적 거부(Do Not Track) 또는 GPC 설정을 켜면 통계를 보내지 않습니다. 일별 통계는 400일이 지나면 삭제합니다.</p>
 <h2>3-1. 쿠키와 브라우저 저장소</h2>
-<table class="table"><thead><tr><th>이름</th><th>종류</th><th>용도</th><th>유지 기간</th></tr></thead><tbody><tr><td>bp_user</td><td>쿠키 (필수)</td><td>로그인 상태 유지. 스크립트가 읽을 수 없게 설정하며 광고·추적에 쓰지 않습니다.</td><td>30일 또는 로그아웃할 때까지</td></tr><tr><td>혈압 기록, 복약 체크 등 도구 데이터</td><td>브라우저 저장소</td><td>입력한 기록을 이 기기에 보관</td><td>이용자가 지울 때까지</td></tr><tr><td>저장한 글 목록, 게시판 임시 저장 글, 로그인 표시용 닉네임</td><td>브라우저 저장소</td><td>로그인하지 않은 상태의 저장 목록, 쓰던 글 보관, 화면 위쪽에 닉네임 표시</td><td>이용자가 지우거나 로그아웃할 때까지</td></tr></tbody></table>
+<table class="table"><thead><tr><th>이름</th><th>종류</th><th>용도</th><th>유지 기간</th></tr></thead><tbody><tr><td>bp_user</td><td>쿠키 (필수)</td><td>로그인 상태 유지. 스크립트가 읽을 수 없게 설정하며 광고·추적에 쓰지 않습니다.</td><td>30일 또는 로그아웃할 때까지</td></tr><tr><td>혈압 기록, 복약 체크 등 도구 데이터</td><td>브라우저 저장소</td><td>입력한 기록을 이 기기에 보관</td><td>이용자가 지울 때까지</td></tr><tr><td>저장한 글 목록, 게시판 임시 저장 글, 로그인 표시용 닉네임</td><td>브라우저 저장소</td><td>로그인하지 않은 상태의 저장 목록, 쓰던 글 보관, 화면 위쪽에 닉네임 표시</td><td>이용자가 지우거나 로그아웃할 때까지</td></tr><tr><td>방문함 표시, 오늘 날짜와 오늘 본 페이지 주소</td><td>브라우저 저장소</td><td>처음 방문·하루 첫 방문 여부를 세는 익명 통계</td><td>다음 날 새로 바뀜 (방문함 표시는 지울 때까지)</td></tr><tr><td>이번 방문의 페이지 수</td><td>브라우저 세션 저장소</td><td>방문 수와 한 페이지만 보고 떠난 비율을 세는 익명 통계</td><td>브라우저 탭을 닫을 때까지</td></tr></tbody></table>
 <p>광고용 쿠키나 외부 분석 도구는 쓰지 않습니다. 로그인 쿠키는 브라우저 설정에서 지울 수 있으며, 지우면 로그아웃됩니다.</p>
 <h2>4. 제3자 제공·위탁</h2>
 <p>이용자의 개인정보를 제3자에게 제공하거나 판매하지 않습니다. 서비스 운영을 위해 다음과 같이 처리를 위탁합니다.</p>
@@ -80,6 +80,7 @@
 <ul>
 <li><b>영상</b> — <a href="/videos/">영상으로 배우기</a>의 영상은 유튜브(Google LLC)가 제공합니다. 이 페이지를 열면 영상 미리보기 그림을 유튜브 서버에서 불러오고, 재생 버튼을 누르면 유튜브 플레이어가 실행되어 접속 정보가 유튜브에 전달됩니다. 재생에는 유튜브의 개인정보 보호 강화 모드를 사용하며, 이후 처리는 Google의 개인정보처리방침을 따릅니다. 다른 페이지에서는 유튜브에 연결하지 않습니다.</li>
 <li><b>공유</b> — 밴드, 페이스북, X, 이메일 공유 버튼은 누를 때에만 해당 서비스의 공유 화면을 엽니다. 전달되는 것은 글의 주소와 제목뿐이고, 회원 정보는 보내지 않습니다.</li>
+<li><b>바른혈압몰(쿠팡 파트너스)</b> — <a href="/mall/">바른혈압몰</a>의 상품 사진은 쿠팡 서버에서 불러오고, 상품을 누르면 쿠팡(쿠팡 주식회사) 사이트로 이동합니다. 쿠팡은 쿠팡 파트너스 실적을 집계하기 위해 쿠키 등으로 이 이동을 기록할 수 있으며, 그 처리는 쿠팡의 개인정보처리방침을 따릅니다. 바른혈압은 쿠팡에서 구매자 정보를 받지 않고, 월별 구매 건수와 금액 합계만 확인합니다.</li>
 <li><b>글꼴</b> — 화면 글꼴을 jsDelivr(글꼴 배포 서버)에서 불러옵니다.</li>
 </ul>
 <h2>4-2. 운영자의 접근 관리</h2>
@@ -88,7 +89,7 @@
 <p>이용자는 언제든 개인정보 열람·정정·삭제·처리정지를 요청할 수 있습니다. 회원은 <a href="/my/">마이페이지</a>에서 닉네임·이메일 변경, 글·댓글 삭제, 탈퇴를 직접 할 수 있고, 그 밖의 요청은 아래 연락처로 보내주시면 지체 없이 처리합니다.</p>
 <h2>6. 개인정보 보호책임자</h2>
 <p>주식회사 블랭크 · 최시준 · <a href="mailto:spaceblank0100@gmail.com">spaceblank0100@gmail.com</a> · 010-2384-9580</p>
-<p style="font-size:.85rem;color:var(--muted)">시행일 2026-11-14 (회원·자유게시판·영상 관련 내용 추가). 이전 시행일 2026-11-07. 본 방침은 법령·서비스 변경 시 개정되며, 개정 시 사이트에 공지합니다.</p>
+<p style="font-size:.85rem;color:var(--muted)">시행일 2026-11-18 (익명 통계 항목, 바른혈압몰 내용 추가). 이전 시행일 2026-11-14, 2026-11-07. 본 방침은 법령·서비스 변경 시 개정되며, 개정 시 사이트에 공지합니다.</p>
 </article></div></section>
 
 </main>
@@ -106,7 +107,7 @@
 </div>
 <div><h4>시작하기</h4><ul><li><a href="/measure/">바르게 재기</a></li><li><a href="/check7/">7일 혈압 기록</a></li><li><a href="/report/">진료 준비 리포트</a></li><li><a href="/tools/">도구 모음</a></li><li><a href="/tools/log-sheet/">인쇄용 혈압 기록지</a></li><li><a href="/family/">가족과 함께 관리</a></li></ul></div>
 <div><h4>알아보기</h4><ul><li><a href="/info/">건강정보</a></li><li><a href="/info/reading-numbers">혈압 정상수치 표</a></li><li><a href="/food/">음식·식단</a></li><li><a href="/food/sodium-table">외식 나트륨 함량표</a></li><li><a href="/food/recipes/">저염 레시피</a></li><li><a href="/factcheck/">팩트체크</a></li><li><a href="/videos/">영상으로 배우기</a></li><li><a href="/library/">공신력 있는 자료실</a></li><li><a href="/stats/">숫자로 보는 고혈압</a></li><li><a href="/glossary/">고혈압 용어사전</a></li><li><a href="/faq/">자주 묻는 질문</a></li></ul></div>
-<div><h4>함께하기</h4><ul><li><a href="/community/board/">자유게시판</a></li><li><a href="/community/">질문과 답변</a></li><li><a href="/community/challenges/">혈압 관리 챌린지</a></li><li><a href="/devices/">혈압계 가이드</a></li><li><a href="/products/">관리용품 가이드</a></li><li><a href="/clinic/">진료 준비·병의원</a></li><li><a href="/partners/">기관 협력</a></li><li><a href="/my/">마이페이지·저장한 글</a></li><li><a href="/account/signup/">회원가입</a></li></ul></div>
+<div><h4>함께하기</h4><ul><li><a href="/community/board/">자유게시판</a></li><li><a href="/community/">질문과 답변</a></li><li><a href="/community/challenges/">혈압 관리 챌린지</a></li><li><a href="/devices/">혈압계 가이드</a></li><li><a href="/products/">관리용품 가이드</a></li><li><a href="/mall/">바른혈압몰</a></li><li><a href="/clinic/">진료 준비·병의원</a></li><li><a href="/partners/">기관 협력</a></li><li><a href="/my/">마이페이지·저장한 글</a></li><li><a href="/account/signup/">회원가입</a></li></ul></div>
 <div><h4>바른혈압</h4><ul><li><a href="/about/">소개·운영 원칙</a></li><li><a href="/policy/editorial">편집·감수·정정 정책</a></li><li><a href="/policy/corrections">정정 이력</a></li><li><a href="/policy/community">게시판 운영 원칙</a></li><li><a href="/policy/privacy">개인정보 처리방침</a></li><li><a href="/policy/terms">이용약관</a></li><li><a href="/rss.xml">RSS 구독</a></li></ul></div>
 </div>
 <div class="legal">
@@ -116,7 +117,7 @@
 </div>
 </footer>
 <script src="/assets/js/bp-store.js?v=4c0f078c"></script>
-<script src="/assets/js/site.js?v=2e4532df"></script>
+<script src="/assets/js/site.js?v=1801cd9c"></script>
 
 </body>
 </html>

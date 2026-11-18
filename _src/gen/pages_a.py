@@ -159,6 +159,7 @@ def home():
 <a class="pillar" href="/library/"><div class="ico">{ICONS["library"]}</div><h3>공신력 있는 자료실</h3><p>학회·공공기관·국제기구의 자료와 검증된 혈압계 목록을 한곳에.</p><span class="more">자료 찾기</span></a>
 <a class="pillar" href="/news/"><div class="ico">{ICONS["chart"]}</div><h3>고혈압 소식과 통계</h3><p>팩트시트, 국민건강영양조사, 지침 변화를 원자료 기준으로 정리합니다.</p><span class="more">소식 보기</span></a>
 </div>
+<a class="mall-band" href="/mall/"><span class="ico">{ICONS["bag"]}</span><span><b>바른혈압몰</b><span>혈압 수첩·약통·줄자·염도계·계량 스푼·홈트레이닝 용품. 글과 함께 쓰기 좋은 생활 관리 물건을 모았습니다.</span></span><span class="mall-band__tag">제휴 · 쿠팡 파트너스</span></a>
 </div>
 </section>
 

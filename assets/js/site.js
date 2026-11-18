@@ -124,13 +124,57 @@
       else fetch("/api/hit", { method: "POST", body: body, keepalive: true, headers: { "Content-Type": "text/plain" } });
     } catch (e) {}
   };
+  // 방문 집계 — 브라우저에는 '처음 왔는지', '오늘 본 페이지 주소', '이번 방문의 페이지 수'만 저장한다(식별자 없음)
+  var thisPage = is404 ? "/404" : pretty(location.pathname);
   (function () {
     var ref = "";
     try { var u = new URL(document.referrer); if (u.host && u.host !== location.host) ref = u.hostname; } catch (e) {}
-    var first = 0;
+    var today = new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10);
+    var first = 0, dayFirst = 0, pageFirst = 0, sessStart = 0, sessSecond = 0;
     try { if (!localStorage.getItem("bp_visited")) { localStorage.setItem("bp_visited", "1"); first = 1; } } catch (e) {}
-    window.bpTrack(null, { r: ref, n: first });
+    try {
+      var seen = JSON.parse(localStorage.getItem("bp_day") || "null");
+      if (!seen || seen.d !== today || !seen.p) { seen = { d: today, p: [] }; dayFirst = 1; }
+      if (seen.p.indexOf(thisPage) < 0) { pageFirst = 1; if (seen.p.length < 300) seen.p.push(thisPage); }
+      localStorage.setItem("bp_day", JSON.stringify(seen));
+    } catch (e) { dayFirst = first; pageFirst = 1; }
+    try {
+      var n = parseInt(sessionStorage.getItem("bp_sess") || "0", 10) || 0;
+      var last = parseInt(sessionStorage.getItem("bp_last") || "0", 10) || 0;
+      if (!n || Date.now() - last > 30 * 60000) n = 0;          // 30분 넘게 쉬었다 오면 새 방문
+      n += 1;
+      sessionStorage.setItem("bp_sess", String(n)); sessionStorage.setItem("bp_last", String(Date.now()));
+      sessStart = n === 1 ? 1 : 0; sessSecond = n === 2 ? 1 : 0;
+    } catch (e) { sessStart = ref ? 1 : 0; }
+    var mobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || (window.matchMedia && matchMedia("(pointer: coarse)").matches);
+    window.bpTrack(null, { r: ref, n: first, v: dayFirst, u: pageFirst, s: sessStart, s2: sessSecond, d: mobile ? "m" : "d" });
   })();
+  // 머문 시간·읽은 정도 — 화면에 보이는 동안의 시간만 센다. 페이지를 떠날 때 한 번 보낸다
+  (function () {
+    if (noTrack) return;
+    var active = 0, since = document.visibilityState === "visible" ? Date.now() : 0, sent = false, maxScroll = 0;
+    function onScroll() { var h = document.documentElement; var r = (h.scrollTop + window.innerHeight) / Math.max(1, h.scrollHeight); if (r > maxScroll) maxScroll = r; }
+    window.addEventListener("scroll", onScroll, { passive: true }); onScroll();
+    function flush() {
+      if (since) { active += Date.now() - since; since = 0; }
+      if (sent) return;
+      var t = Math.round(active / 1000);
+      if (t < 1) return;
+      sent = true;
+      window.bpTrack("_t", { t: Math.min(t, 1800), sc: Math.round(Math.min(1, maxScroll) * 100) });
+    }
+    document.addEventListener("visibilitychange", function () { if (document.visibilityState === "hidden") flush(); else if (!sent && !since) since = Date.now(); });
+    window.addEventListener("pagehide", flush);
+  })();
+  // 클릭 집계 — 바른혈압몰 상품, 글 끝 관련 제품 상자, 바깥 링크(도메인만), 버튼(이름만)
+  document.addEventListener("click", function (e) {
+    var a = e.target && e.target.closest ? e.target.closest("a, button") : null;
+    if (!a) return;
+    if (a.dataset && a.dataset.mall) { window.bpTrack("mall_click", { k: a.dataset.mall }); return; }
+    if (a.dataset && a.dataset.mallBox) { window.bpTrack("mall_box", { k: a.dataset.mallBox }); return; }
+    if (a.tagName === "A" && /^https?:$/.test(a.protocol) && a.hostname && a.hostname !== location.hostname) { window.bpTrack("out", { k: a.hostname.replace(/^www\./, "") }); return; }
+    if (a.classList && a.classList.contains("btn")) window.bpTrack("cta", { k: (a.textContent || "").replace(/\d+/g, "#").replace(/\s+/g, " ").trim().slice(0, 24) });
+  }, true);
   // 폼 접수 성공 집계
   document.addEventListener("bp:form-ok", function (e) { window.bpTrack("form_" + e.detail); });
 
@@ -224,6 +268,7 @@
     drop: function (k) { lsSet("bp_saved", Save.list().filter(function (x) { return x.k !== k; })); },
     toggle: function (k, t) {
       var on = !Save.has(k);
+      if (on && window.bpTrack) window.bpTrack("save");
       if (!User.hint()) {
         if (on) Save.put(k, t); else Save.drop(k);
         return Promise.resolve({ ok: true, on: on, local: true });

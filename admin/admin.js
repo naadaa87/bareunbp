@@ -18,7 +18,8 @@
     meds_check: "복약 체크", reminder_ics: "측정 알림 만들기", backup_export: "기록 백업 저장", backup_import: "기록 불러오기",
     challenge_done: "챌린지 완료 체크", form_qna: "질문·경험담 제출", form_lead: "문의·신청 제출", form_newsletter: "레터 구독",
     form_report: "팩트체크 요청", search: "사이트 검색", logsheet_print: "기록지 인쇄", recipe_print: "레시피 인쇄", mealplan_print: "식단표 인쇄",
-    signup: "회원가입", withdraw: "회원 탈퇴", post_create: "게시판 글 작성", comment_create: "댓글 작성", bookmark_add: "글 저장", share: "글 공유", video_play: "영상 재생"
+    signup: "회원가입", withdraw: "회원 탈퇴", post_create: "게시판 글 작성", comment_create: "댓글 작성", bookmark_add: "글 저장(회원)", share: "글 공유", video_play: "영상 재생",
+    save: "글 저장 버튼", mall_click: "쿠팡 상품 클릭", mall_view: "몰 상품 노출 묶음", mall_box: "글 끝 관련 제품 상자 클릭", out: "바깥 링크 클릭", cta: "버튼 클릭"
   };
   var ACTION_LABEL = {
     login: "로그인", login_failed: "로그인 실패", qna_publish: "질문 게시", qna_update: "질문 저장", qna_delete: "질문 삭제",
@@ -30,7 +31,8 @@
     member_suspend: "회원 이용 제한", member_restore: "회원 제한 해제", member_temppw: "임시 비밀번호 발급", member_delete: "회원 강제 탈퇴", member_memo: "회원 메모",
     post_hide: "글 숨김", post_restore: "글 다시 보이기", post_delete: "글 완전 삭제", post_pin: "글 고정 변경", post_update: "글 수정", notice_add: "공지 작성",
     comment_hide: "댓글 숨김", comment_restore: "댓글 다시 보이기", comment_delete: "댓글 삭제", ugc_resolve: "신고 처리",
-    video_add: "영상 추가", video_edit: "영상 수정", video_delete: "영상 삭제"
+    video_add: "영상 추가", video_edit: "영상 수정", video_delete: "영상 삭제",
+    mall_report: "쿠팡 실적 입력", mall_report_delete: "쿠팡 실적 삭제", mall_item_add: "몰 상품 추가", mall_item_edit: "몰 상품 수정", mall_item_delete: "몰 상품 삭제", mall_hide: "몰 상품 숨김 변경"
   };
   // 편집 정책 표현 가이드 — 서버와 같은 목록
   var BANNED = ["완치", "치료합니다", "치료해", "치료 효과", "치료됩니다", "약을 끊", "약 끊", "끊으세요", "끊어도 됩니다", "줄이세요", "복용을 중단", "중단하세요", "드시면 됩니다", "처방합니다", "진단합니다", "진단됩니다", "발병위험", "사망위험", "위험도", "보장합니다", "100%", "특효", "특효약", "확실히 낮", "무조건"];
@@ -165,6 +167,7 @@
   // ============================================================ 앱 틀
   var NAV = [
     { g: "운영", items: [["", "대시보드", 1], ["qna", "질문·경험담", 1], ["leads", "문의·신청", 0], ["reports", "팩트체크 요청", 0]] },
+    { g: "분석·수익", items: [["kpi", "KPI 대시보드", 0], ["mall", "바른혈압몰", 0]] },
     { g: "커뮤니티", items: [["board", "게시판 관리", 0], ["members", "회원", 0]] },
     { g: "콘텐츠", items: [["content", "콘텐츠·감수", 1], ["corrections", "정정 이력", 1], ["videos", "영상 관리", 0], ["notice", "사이트 공지", 0]] },
     { g: "구독·기록", items: [["newsletter", "구독자", 0], ["audit", "활동 기록", 0], ["system", "시스템·데이터", 0]] },
@@ -206,7 +209,7 @@
     var side = document.getElementById("side"); if (side) side.classList.remove("open");
     if (parts[1]) parts[1].split("&").forEach(function (kv) { var p = kv.split("="); S.params[decodeURIComponent(p[0])] = decodeURIComponent(p[1] || ""); });
     document.querySelectorAll(".nav-group a").forEach(function (a) { a.classList.toggle("on", a.dataset.r === r); });
-    var views = { "": viewDashboard, qna: viewQna, leads: viewLeads, reports: viewReports, content: viewContent, corrections: viewCorrections, notice: viewNotice, newsletter: viewNewsletter, audit: viewAudit, system: viewSystem, members: viewMembers, board: viewBoard, videos: viewVideos, guide: viewGuide };
+    var views = { "": viewDashboard, qna: viewQna, leads: viewLeads, reports: viewReports, content: viewContent, corrections: viewCorrections, notice: viewNotice, newsletter: viewNewsletter, audit: viewAudit, system: viewSystem, members: viewMembers, board: viewBoard, videos: viewVideos, guide: viewGuide, kpi: viewKpi, mall: viewMall };
     var v = views[r] || viewDashboard;
     var main = document.getElementById("main");
     main.innerHTML = '<div class="loading">불러오는 중…</div>';
@@ -258,7 +261,7 @@
       main.innerHTML = pageHead("대시보드", "오늘 " + esc(d.today) + " · " + esc(S.me.name) + "님") +
         '<div class="kpis">' + kpis + "</div>" +
         '<div class="grid g2">' +
-        '<div class="card"><h2>방문 <small>익명 페이지뷰 · 오늘 ' + d.visits.today + " · 7일 " + d.visits.d7 + " · 30일 " + d.visits.d30 + '</small></h2><div class="chart"><svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="최근 14일 페이지뷰">' + bars + "</svg></div>" + (noStats ? '<p class="muted small" style="margin:6px 0 0">아직 수집된 방문이 없습니다. 배포 후 방문이 쌓이면 표시됩니다.</p>' : "") + "</div>" +
+        '<div class="card"><h2><span>방문 <small>익명 페이지뷰 · 오늘 ' + d.visits.today + " · 7일 " + d.visits.d7 + " · 30일 " + d.visits.d30 + "</small></span>" + (isAdmin() ? '<a class="btn btn-g btn-sm" href="#/kpi">KPI 자세히</a>' : "") + '</h2><div class="chart"><svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="최근 14일 페이지뷰">' + bars + "</svg></div>" + (noStats ? '<p class="muted small" style="margin:6px 0 0">아직 수집된 방문이 없습니다. 배포 후 방문이 쌓이면 표시됩니다.</p>' : "") + "</div>" +
         '<div class="card"><h2>도구 이용 <small>최근 30일</small></h2>' + funnel + listHtml(evRows, function (k) { return esc(EVENT_LABEL[k] || k); }, "아직 기록이 없습니다.") + "</div>" +
         '<div class="card"><h2>많이 본 페이지 <small>최근 7일</small></h2>' + listHtml(d.top, function (k) { return '<a href="' + esc(k) + '" target="_blank" rel="noopener" title="' + esc(k) + '">' + esc(titleOf(k)) + "</a>"; }, "아직 기록이 없습니다.") + "</div>" +
         '<div class="card"><h2>사이트 검색어 <small>최근 30일 · 콘텐츠 기획에 활용</small></h2>' + listHtml(d.searches, function (k) { return esc(k); }, "아직 검색 기록이 없습니다.") + "</div>" +
@@ -708,7 +711,7 @@
     api("system").then(function (j) {
       if (!j.ok) { main.innerHTML = pageHead("시스템·데이터") + '<div class="callout bad">' + esc(errMsg(j)) + "</div>"; return; }
       var t = j.tables, p = j.purgeable, pTotal = p.leads + p.reports + p.newsletter + p.stats + (p.ugc || 0) + (p.ugc_reports || 0);
-      var labels = { users: "회원", posts: "게시판 글", comments: "댓글", bookmarks: "저장(찜)", ugc_reports: "게시판 신고", videos: "등록 영상", qna: "질문·경험담", leads: "문의·신청", newsletter: "구독자", factcheck_reports: "팩트체크 요청", content_reviews: "감수 기록", corrections: "정정 이력", audit_log: "활동 기록", stats_daily: "통계(일별 집계)", rate_limits: "접수 속도 제한 기록" };
+      var labels = { users: "회원", mall_items: "몰 추가 상품", mall_reports: "쿠팡 실적 기록", posts: "게시판 글", comments: "댓글", bookmarks: "저장(찜)", ugc_reports: "게시판 신고", videos: "등록 영상", qna: "질문·경험담", leads: "문의·신청", newsletter: "구독자", factcheck_reports: "팩트체크 요청", content_reviews: "감수 기록", corrections: "정정 이력", audit_log: "활동 기록", stats_daily: "통계(일별 집계)", rate_limits: "접수 속도 제한 기록" };
       var tr = Object.keys(labels).map(function (k) { return "<tr><td>" + labels[k] + '</td><td class="num">' + (t[k] || 0) + "</td></tr>"; }).join("");
       var ok = function (b) { return b ? '<span class="tag t-green">정상</span>' : '<span class="tag t-amber">미설정</span>'; };
       main.innerHTML = pageHead("시스템·데이터", "연결 상태, 데이터 보관, 백업을 관리합니다.") +
@@ -1030,6 +1033,275 @@
     };
     var del = d.querySelector("[data-del]");
     if (del) del.onclick = function () { confirmBox("영상을 목록에서 삭제할까요?", "<p>영상 페이지에서 사라집니다.</p>", "삭제", true).then(function (ok) { if (ok) api("videos/" + v.id + "/delete", { body: {} }).then(function (j) { if (j.ok) { toast("삭제했습니다."); closeDrawer(); done(); } else toast(errMsg(j), true); }); }); };
+  }
+
+  // ============================================================ KPI 대시보드
+  var SRC_LABEL = { naver: "네이버 검색", google: "구글 검색", daum: "다음 검색", bing: "빙 검색", naver_etc: "네이버 블로그·카페 등", band: "밴드", kakao: "카카오", facebook: "페이스북", instagram: "인스타그램", youtube: "유튜브", x: "X(트위터)", threads: "스레드", ai: "AI 검색(챗GPT 등)", other: "기타 사이트", direct: "직접 방문·앱·메신저" };
+  var PAGE_LABEL = { "/": "홈", "/check7/": "7일 혈압 기록", "/measure/": "바르게 재기", "/info/": "건강정보 목록", "/food/": "음식·식단", "/food/recipes/": "저염 레시피 목록", "/factcheck/": "팩트체크 목록", "/tools/": "도구 모음",
+    "/tools/timer/": "측정 타이머", "/tools/sodium/": "나트륨 계산기", "/tools/meds/": "복약 체크", "/tools/log-sheet/": "인쇄용 기록지", "/community/": "커뮤니티", "/community/board/": "자유게시판", "/community/board/post/": "게시글 보기",
+    "/mall/": "바른혈압몰", "/report/": "진료 준비 리포트", "/videos/": "영상으로 배우기", "/search/": "사이트 검색", "/devices/": "혈압계 가이드", "/products/": "관리용품 가이드", "/clinic/": "진료 준비", "/family/": "가족과 함께",
+    "/glossary/": "용어사전", "/faq/": "자주 묻는 질문", "/stats/": "숫자로 보는 고혈압", "/news/": "고혈압 소식", "/library/": "자료실", "/my/": "마이페이지", "/account/login/": "로그인", "/account/signup/": "회원가입", "/about/": "소개", "/404": "없는 페이지(404)" };
+  function pageName(p) { return PAGE_LABEL[p] || titleOf(p); }
+  function isContent(p) { return /^\/(info|factcheck|food)\/[a-z0-9-]+$|^\/food\/recipes\/[a-z0-9-]+$/.test(p); }
+  function nf(n, d) { n = Number(n) || 0; return n.toLocaleString("ko-KR", { maximumFractionDigits: d == null ? 0 : d }); }
+  function pct(a, b, d) { return b ? nf((a / b) * 100, d == null ? 1 : d) + "%" : "-"; }
+  function dur(sec) { sec = Math.round(sec || 0); if (!sec) return "-"; var m = Math.floor(sec / 60), s2 = sec % 60; return m ? m + "분 " + s2 + "초" : s2 + "초"; }
+  function delta(cur, prev, lowerIsBetter) {
+    if (!prev && !cur) return "";
+    if (!prev) return '<em class="dl up">새로 생김</em>';
+    var r = (cur - prev) / prev * 100, good = lowerIsBetter ? r < 0 : r > 0;
+    if (Math.abs(r) < 0.5) return '<em class="dl">변화 없음</em>';
+    return '<em class="dl ' + (good ? "up" : "down") + '">' + (r > 0 ? "▲ " : "▼ ") + nf(Math.abs(r), 0) + "%</em>";
+  }
+  function kcard(label, val, sub, tip) { return '<div class="kpi"' + (tip ? ' title="' + esc(tip) + '"' : "") + "><small>" + label + '</small><b class="num">' + val + "</b>" + (sub || "") + "</div>"; }
+  function barList(rows, label, opt) {
+    opt = opt || {};
+    if (!rows || !rows.length) return '<p class="muted small" style="margin:0">' + (opt.empty || "아직 기록이 없습니다.") + "</p>";
+    var total = opt.total || rows.reduce(function (a, r) { return a + r.n; }, 0), mx = rows[0].n || 1;
+    return '<ul class="list">' + rows.slice(0, opt.limit || 10).map(function (r) {
+      return "<li><span>" + label(r.key) + '</span><span class="num"><i class="bar" style="width:' + Math.max(4, Math.round((r.n / mx) * 70)) + 'px"></i>' + nf(r.n) + (opt.share ? ' <span class="muted small">' + pct(r.n, total, 0) + "</span>" : "") + "</span></li>";
+    }).join("") + "</ul>";
+  }
+  function trendSvg(days, series) {
+    var W = 720, H = 190, n = days.length, bw = W / n;
+    var max = Math.max.apply(null, days.map(function (d) { return series.pv[d] || 0; }).concat([5]));
+    var y = function (v) { return H - 22 - Math.round((v / max) * (H - 40)); };
+    var bars = days.map(function (d, i) {
+      var pv = series.pv[d] || 0, uv = series.uv[d] || 0, x = i * bw;
+      return '<rect x="' + (x + bw * 0.12) + '" y="' + y(pv) + '" width="' + Math.max(1, bw * 0.76) + '" height="' + (H - 22 - y(pv)) + '" rx="2" fill="#c9dcf2"><title>' + d + " · 페이지뷰 " + pv + " · 방문자 " + uv + "</title></rect>";
+    }).join("");
+    var line = days.map(function (d, i) { return (i ? "L" : "M") + (i * bw + bw / 2).toFixed(1) + " " + y(series.uv[d] || 0); }).join(" ");
+    var step = Math.ceil(n / 10), labels = days.map(function (d, i) { return i % step === 0 || i === n - 1 ? '<text x="' + (i * bw + bw / 2) + '" y="' + (H - 6) + '" font-size="10" fill="#8a98a8" text-anchor="middle">' + d.slice(5).replace("-", "/") + "</text>" : ""; }).join("");
+    return '<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="기간별 방문 추이">' + bars + '<path d="' + line + '" fill="none" stroke="#1f5aa6" stroke-width="2"/>' + labels + "</svg>" +
+      '<div class="legend"><span><i style="background:#c9dcf2"></i>페이지뷰</span><span><i style="background:#1f5aa6;height:3px"></i>방문자</span></div>';
+  }
+  function loadMallProducts() {
+    if (S.mallProducts) return Promise.resolve(S.mallProducts);
+    return fetch("/mall/products.json", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (j) { S.mallProducts = j; return j; }).catch(function () { S.mallProducts = []; return []; });
+  }
+  function csvDownload(name, rows) {
+    var csv = "﻿" + rows.map(function (r) { return r.map(function (c) { c = String(c == null ? "" : c); return /[",\n]/.test(c) ? '"' + c.replace(/"/g, '""') + '"' : c; }).join(","); }).join("\n");
+    var a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" })); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  }
+
+  function viewKpi(main) {
+    var days = parseInt(S.params.days || "30", 10) || 30;
+    Promise.all([api("kpi?days=" + days), loadMallProducts()]).then(function (res) {
+      var j = res[0], prods = res[1];
+      if (!j.ok) { main.innerHTML = pageHead("KPI 대시보드") + '<div class="callout bad">' + esc(errMsg(j)) + "</div>"; return; }
+      var C = j.cur || {}, P = j.prev || {}, g = function (o, k) { return o[k] || 0; };
+      var CMP = j.range.compare !== false, dl = function (a, b, low) { return CMP ? delta(a, b, low) : ""; };
+      var dim = {}; (j.dims || []).forEach(function (r) { (dim[r.kind] = dim[r.kind] || []).push({ key: r.key, n: r.n }); });
+      Object.keys(dim).forEach(function (k) { dim[k].sort(function (a, b) { return b.n - a.n; }); });
+      var ev = {}; (dim.event || []).forEach(function (r) { ev[r.key] = r.n; });
+      // ---- 페이지별
+      var pg = {};
+      (j.pages || []).forEach(function (r) { var o = pg[r.key] = pg[r.key] || { p: r.key }; o[r.kind] = r.n; });
+      (dim.ev_p || []).forEach(function (r) { var i = r.key.indexOf("|"), e = r.key.slice(0, i), p = r.key.slice(i + 1); var o = pg[p] = pg[p] || { p: p }; if (e === "share" || e === "save") o[e] = (o[e] || 0) + r.n; });
+      var pages = Object.keys(pg).map(function (k) { return pg[k]; }).filter(function (o) { return o.pv; }).sort(function (a, b) { return b.pv - a.pv; });
+      // ---- 핵심 숫자
+      var uv = g(C, "uv"), pv = g(C, "pv_total"), ses = g(C, "session"), ses2 = g(C, "session2"), nv = g(C, "visitor");
+      var tsum = g(C, "tsum"), tcnt = g(C, "tcnt"), eng = g(C, "eng"), read = g(C, "read");
+      var Puv = g(P, "uv"), Ppv = g(P, "pv_total"), Pses = g(P, "session"), Pses2 = g(P, "session2"), Pnv = g(P, "visitor");
+      var avg = tcnt ? tsum / tcnt : 0, Pavg = g(P, "tcnt") ? g(P, "tsum") / g(P, "tcnt") : 0;
+      var bounce = ses ? (1 - ses2 / ses) : 0, Pbounce = Pses ? (1 - Pses2 / Pses) : 0;
+      var clicks = (ev.cta || 0) + (ev.out || 0) + (ev.mall_click || 0) + (ev.mall_box || 0);
+      var imp = g(C, "mall_imp"), mclk = g(C, "mall_click"), Pimp = g(P, "mall_imp"), Pmclk = g(P, "mall_click");
+      var mallPv = (pg["/mall/"] || {}).pv || 0;
+      var u = j.ugc || {};
+      // 쿠팡 실적 (입력값) — 기간에 걸친 달
+      var fromM = j.range.from.slice(0, 7), toM = j.range.to.slice(0, 7);
+      var reps = (j.reports || []).filter(function (r) { return r.month >= fromM && r.month <= toM; });
+      var rsum = function (k) { return reps.reduce(function (a, r) { return a + (r[k] || 0); }, 0); };
+      var orders = rsum("orders"), cclicks = rsum("clicks"), gmv = rsum("gmv"), comm = rsum("commission");
+      var monthClicks = {}; (j.months || []).forEach(function (r) { if (r.kind === "mall_click") monthClicks[r.month] = r.n; });
+      var ourClicksInMonths = reps.reduce(function (a, r) { return a + (monthClicks[r.month] || 0); }, 0);
+      var periodTxt = days === 1 ? "오늘" : "최근 " + days + "일";
+
+      var periodBtns = [[1, "오늘"], [7, "7일"], [30, "30일"], [90, "90일"], [365, "1년"]].map(function (x) { return '<button data-days="' + x[0] + '" class="' + (x[0] === days ? "on" : "") + '">' + x[1] + "</button>"; }).join("");
+      var traffic =
+        kcard("방문자수", nf(uv), dl(uv, Puv), "하루 단위 순방문자를 기간 동안 더한 값. 같은 사람이 이틀 오면 2로 셉니다.") +
+        kcard("신규 방문자", nf(nv), dl(nv, Pnv), "이 브라우저로 처음 방문한 수") +
+        kcard("방문(세션)", nf(ses), dl(ses, Pses), "30분 넘게 쉬면 새 방문으로 셉니다.") +
+        kcard("페이지뷰", nf(pv), dl(pv, Ppv)) +
+        kcard("방문당 페이지", ses ? nf(pv / ses, 1) : "-", Pses ? dl(pv / ses, Ppv / Pses) : "") +
+        kcard("평균 체류시간", dur(avg), dl(avg, Pavg), "화면에 보인 시간만 센 페이지당 평균") +
+        kcard("이탈률", ses ? pct(ses - ses2, ses) : "-", Pses ? dl(bounce, Pbounce, true) : "", "한 페이지만 보고 떠난 방문의 비율 (낮을수록 좋음)") +
+        kcard("완독률", pct(read, tcnt), "", "글의 75% 이상까지 내리고 15초 넘게 머문 비율");
+      var engage =
+        kcard("클릭수", nf(clicks), "", "버튼·바깥 링크·쿠팡 상품·관련 제품 상자 클릭 합계") +
+        kcard("공유", nf(ev.share || 0)) + kcard("저장", nf((ev.save || 0))) + kcard("영상 재생", nf(ev.video_play || 0)) +
+        kcard("혈압 기록 저장", nf((ev.record_saved || 0) + (ev.quick_entry || 0))) + kcard("사이트 검색", nf(ev.search || 0)) +
+        kcard("신규 회원", nf(u.signups), delta(u.signups || 0, u.signups_prev || 0)) + kcard("게시글·댓글", nf((u.posts || 0) + (u.comments || 0)), delta((u.posts || 0) + (u.comments || 0), (u.posts_prev || 0) + (u.comments_prev || 0))) +
+        kcard("레터 구독", nf(u.newsletter), delta(u.newsletter || 0, u.newsletter_prev || 0)) + kcard("질문·경험담", nf(u.qna), delta(u.qna || 0, u.qna_prev || 0));
+      var mall =
+        kcard("몰 방문(페이지뷰)", nf(mallPv)) +
+        kcard("상품 노출", nf(imp), dl(imp, Pimp), "상품 카드가 화면에 절반 이상 보인 횟수 (방문당 상품별 1회)") +
+        kcard("쿠팡 링크 클릭", nf(mclk), dl(mclk, Pmclk)) +
+        kcard("클릭률(CTR)", pct(mclk, imp), "", "쿠팡 링크 클릭 ÷ 상품 노출") +
+        kcard("몰 방문 대비 클릭", pct(mclk, mallPv), "", "쿠팡 링크 클릭 ÷ 바른혈압몰 페이지뷰") +
+        kcard("관련 제품 상자 클릭", nf(ev.mall_box || 0), "", "글 끝 상자에서 바른혈압몰로 넘어간 횟수") +
+        kcard("구매 건수", reps.length ? nf(orders) : "입력 전", reps.length ? '<em class="muted">' + reps.map(function (r) { return r.month; }).join(", ") + " 입력값</em>" : "", "쿠팡 파트너스 리포트에서 옮겨 적은 값") +
+        kcard("구매전환율", reps.length && cclicks ? pct(orders, cclicks, 2) : "-", reps.length && ourClicksInMonths ? '<em class="muted">우리 집계 클릭 기준 ' + pct(orders, ourClicksInMonths, 2) + "</em>" : "", "구매 건수 ÷ 쿠팡이 집계한 클릭") +
+        kcard("수익", reps.length ? nf(comm) + "원" : "-", reps.length && gmv ? '<em class="muted">구매 금액 ' + nf(gmv) + "원</em>" : "") +
+        kcard("1천 페이지뷰당 수익", reps.length && pv ? nf(comm / (pv / 1000)) + "원" : "-", "", "입력한 달의 수익 ÷ 기간 페이지뷰 × 1,000 (RPM)");
+
+      // ---- 추이 그래프
+      var dlist = [], sp = { pv: {}, uv: {} };
+      for (var i = days - 1; i >= 0; i--) dlist.push(kstDay(i));
+      (j.series || []).forEach(function (r) { if (r.kind === "pv_total") sp.pv[r.day] = r.n; if (r.kind === "uv") sp.uv[r.day] = r.n; });
+      // ---- 유입·기기
+      var src = dim.src || [], dev = dim.device || [];
+      // ---- 인기 정보
+      var popular = pages.filter(function (o) { return isContent(o.p); }).slice(0, 10);
+      var popRows = popular.map(function (o, i) {
+        return "<tr><td class=\"num\">" + (i + 1) + '</td><td><a href="' + esc(o.p) + '" target="_blank" rel="noopener">' + esc(pageName(o.p)) + '</a><div class="muted small">' + esc(o.p) + '</div></td><td class="num">' + nf(o.pv) + '</td><td class="num hide-m">' + nf(o.upv || 0) + '</td><td class="num">' + dur(o.tcnt ? o.tsum / o.tcnt : 0) + '</td><td class="num hide-m">' + pct(o.read || 0, o.tcnt || 0, 0) + "</td></tr>";
+      }).join("");
+      // ---- 페이지별 표
+      var pageRow = function (o) {
+        return '<tr><td><a href="' + esc(o.p) + '" target="_blank" rel="noopener">' + esc(pageName(o.p)) + '</a><div class="muted small">' + esc(o.p) + '</div></td><td class="num">' + nf(o.pv) + '</td><td class="num">' + nf(o.upv || 0) + '</td><td class="num">' + dur(o.tcnt ? o.tsum / o.tcnt : 0) + '</td><td class="num hide-m">' + pct(o.read || 0, o.tcnt || 0, 0) + '</td><td class="num hide-m">' + nf(o.land || 0) + '</td><td class="num hide-m">' + nf((o.share || 0) + (o.save || 0)) + "</td></tr>";
+      };
+      // ---- 상품별
+      var pname = {}; (prods || []).forEach(function (x) { pname[x.id] = x.name; });
+      var pstat = {}; (dim.mall_imp || []).forEach(function (r) { (pstat[r.key] = pstat[r.key] || { id: r.key, imp: 0, clk: 0 }).imp = r.n; });
+      (dim.mall_click || []).forEach(function (r) { (pstat[r.key] = pstat[r.key] || { id: r.key, imp: 0, clk: 0 }).clk = r.n; });
+      var plist = Object.keys(pstat).map(function (k) { return pstat[k]; }).sort(function (a, b) { return b.clk - a.clk || b.imp - a.imp; });
+      var prodRows = plist.slice(0, 15).map(function (x) { return "<tr><td>" + esc(pname[x.id] || "추가 상품 " + x.id) + '</td><td class="num">' + nf(x.imp) + '</td><td class="num">' + nf(x.clk) + '</td><td class="num">' + pct(x.clk, x.imp) + "</td></tr>"; }).join("");
+
+      var sub = esc(j.range.stat_from || j.range.from) + " ~ " + esc(j.range.to) + (CMP ? " · 비교 기간 " + esc(j.range.prev_from) + " ~ " + esc(j.range.prev_to) + " (화살표는 비교 기간 대비 증감)" : "") +
+        (j.range.stat_from && j.range.stat_from > j.range.from ? " · 방문자·체류시간·클릭 지표는 " + esc(j.range.since) + "부터 집계해 그 전 날짜는 합계에서 뺐습니다." : "");
+      main.innerHTML = pageHead("KPI 대시보드", sub,
+        '<div class="tabs" id="pd" style="margin:0">' + periodBtns + '</div><button class="btn btn-s btn-sm" id="csv">페이지별 CSV</button>') +
+        '<h3 class="kh">트래픽</h3><div class="kpis">' + traffic + "</div>" +
+        '<div class="card"><h2>방문 추이 <small>' + periodTxt + " · 막대는 페이지뷰, 선은 방문자</small></h2><div class=\"chart\">" + trendSvg(dlist, sp) + "</div></div>" +
+        '<h3 class="kh">참여·커뮤니티</h3><div class="kpis">' + engage + "</div>" +
+        '<h3 class="kh">바른혈압몰 · 쿠팡 파트너스</h3><div class="kpis">' + mall + "</div>" +
+        (reps.length ? "" : '<div class="callout warn" style="margin-bottom:14px">구매 건수·전환율·수익은 쿠팡 파트너스 리포트의 숫자를 옮겨 적어야 계산됩니다. <a href="#/mall">바른혈압몰 메뉴</a>에서 월별 실적을 입력하세요.</div>') +
+        '<div class="grid g2" style="margin-top:14px">' +
+        '<div class="card"><h2>가장 인기 있는 정보 <small>' + periodTxt + " · 건강정보·음식·팩트체크·레시피</small></h2>" + (popRows ? '<div class="table-wrap" style="border:0"><table><thead><tr><th>#</th><th>글</th><th>조회</th><th class="hide-m">순방문</th><th>평균 체류</th><th class="hide-m">완독률</th></tr></thead><tbody>' + popRows + "</tbody></table></div>" : '<p class="muted small" style="margin:0">아직 기록이 없습니다.</p>') + "</div>" +
+        '<div class="card"><h2>유입 경로 <small>방문이 시작된 곳</small></h2>' + barList(src, function (k) { return esc(SRC_LABEL[k] || k); }, { share: 1, limit: 12, empty: "아직 기록이 없습니다." }) +
+        '<h2 style="margin-top:16px">기기</h2>' + barList(dev, function (k) { return k === "mobile" ? "모바일·태블릿" : "PC"; }, { share: 1 }) + "</div>" +
+        '<div class="card"><h2>바른혈압몰 상품별 <small>노출 · 클릭 · 클릭률</small></h2>' + (prodRows ? '<div class="table-wrap" style="border:0"><table><thead><tr><th>상품</th><th>노출</th><th>클릭</th><th>CTR</th></tr></thead><tbody>' + prodRows + "</tbody></table></div>" : '<p class="muted small" style="margin:0">아직 기록이 없습니다.</p>') + "</div>" +
+        '<div class="card"><h2>많이 들어온 사이트 <small>도메인</small></h2>' + barList(dim.ref, function (k) { return esc(k); }, { empty: "외부 유입 기록이 없습니다." }) + "</div>" +
+        '<div class="card"><h2>많이 누른 버튼</h2>' + barList(dim.cta, function (k) { var i = k.indexOf(" ▸ "); return esc(k.slice(i + 3)) + ' <span class="muted small">' + esc(pageName(k.slice(0, i))) + "</span>"; }, { limit: 12 }) + "</div>" +
+        '<div class="card"><h2>바깥 링크 클릭 <small>출처·공유 등</small></h2>' + barList(dim.out, function (k) { return esc(k); }) + "</div>" +
+        '<div class="card"><h2>첫 페이지(랜딩) <small>방문이 시작된 페이지</small></h2>' + barList(pages.filter(function (o) { return o.land; }).map(function (o) { return { key: o.p, n: o.land }; }).sort(function (a, b) { return b.n - a.n; }), function (k) { return esc(pageName(k)); }, { share: 1 }) + "</div>" +
+        '<div class="card"><h2>사이트 검색어 <small>콘텐츠 기획에 활용</small></h2>' + barList(dim.search, function (k) { return esc(k); }, { limit: 12 }) + "</div>" +
+        '<div class="card"><h2>도구 이용·참여</h2>' + barList((dim.event || []).filter(function (r) { return ["search", "mall_view", "cta", "out"].indexOf(r.key) < 0; }), function (k) { return esc(EVENT_LABEL[k] || k); }, { limit: 14 }) + "</div>" +
+        "</div>" +
+        '<div class="card" style="margin-top:14px"><h2>페이지별 성과 <small>' + periodTxt + " · 조회수 순</small></h2>" + tabsHtml([["all", "전체"], ["content", "글만"], ["other", "도구·기타"]], S.params.pt || "all") +
+        '<div class="table-wrap"><table><thead><tr><th>페이지</th><th>조회수</th><th>순방문자</th><th>평균 체류</th><th class="hide-m">완독률</th><th class="hide-m">첫 페이지</th><th class="hide-m">공유·저장</th></tr></thead><tbody id="ptb"></tbody></table></div>' +
+        '<p class="muted small" id="pmore"></p></div>' +
+        '<details class="card" style="margin-top:14px"><summary><b>지표를 어떻게 세나요?</b></summary><ul class="small" style="line-height:1.8;margin:10px 0 0">' +
+        "<li><b>방문자수</b> — 하루 단위 순방문자. 브라우저에 오늘 날짜만 저장해 그날 첫 페이지인지 확인합니다. 기간 합계라 같은 사람이 이틀 오면 2로 셉니다.</li>" +
+        "<li><b>방문(세션)</b> — 페이지를 열 때마다 이어지는 한 번의 방문. 30분 넘게 쉬었다 오면 새 방문입니다. <b>이탈률</b>은 페이지 하나만 보고 떠난 방문의 비율입니다.</li>" +
+        "<li><b>체류시간</b> — 화면에 실제로 보인 시간만 셉니다(최대 30분). 페이지를 떠날 때 한 번 보냅니다. <b>완독률</b>은 75% 이상 스크롤하고 15초 넘게 머문 비율입니다.</li>" +
+        "<li><b>상품 노출·클릭</b> — 상품 카드가 화면에 절반 이상 보이면 노출 1회(방문당 상품별 한 번), ‘쿠팡에서 보기’ 또는 사진을 누르면 클릭 1회입니다.</li>" +
+        "<li><b>구매 건수·수익</b> — 쿠팡은 구매 정보를 바른혈압에 보내지 않으므로, 쿠팡 파트너스 리포트의 숫자를 바른혈압몰 메뉴에 월별로 입력하면 계산됩니다.</li>" +
+        "<li>로봇, 추적 거부(Do Not Track·GPC) 설정 브라우저, 관리자 화면은 세지 않습니다. 이름·IP·쿠키 ID 같은 식별자는 저장하지 않습니다.</li></ul></details>";
+      // 기간 버튼
+      main.querySelectorAll("#pd button").forEach(function (b) { b.onclick = function () { location.hash = "#/kpi?days=" + b.dataset.days; }; });
+      // 페이지 표
+      var drawPages = function (tab) {
+        var list = pages.filter(function (o) { return tab === "content" ? isContent(o.p) : tab === "other" ? !isContent(o.p) : true; });
+        var show = S.params.all ? list : list.slice(0, 40);
+        document.getElementById("ptb").innerHTML = show.map(pageRow).join("") || '<tr><td colspan="7" class="empty">아직 기록이 없습니다.</td></tr>';
+        document.getElementById("pmore").innerHTML = list.length > show.length ? "상위 40개만 표시했습니다. 전체 " + list.length + '개 — <a href="#" id="pall">모두 보기</a>' : "";
+        var a = document.getElementById("pall"); if (a) a.onclick = function (e) { e.preventDefault(); S.params.all = 1; drawPages(tab); };
+      };
+      drawPages(S.params.pt || "all");
+      main.querySelectorAll(".card .tabs button[data-tab]").forEach(function (b) { b.onclick = function () { main.querySelectorAll(".card .tabs button[data-tab]").forEach(function (x) { x.classList.toggle("on", x === b); }); drawPages(b.dataset.tab); }; });
+      document.getElementById("csv").onclick = function () {
+        csvDownload("바른혈압_페이지별_" + j.range.from + "_" + j.range.to + ".csv", [["주소", "제목", "조회수", "순방문자", "평균 체류(초)", "완독률(%)", "첫 페이지", "공유", "저장"]].concat(pages.map(function (o) {
+          return [o.p, pageName(o.p), o.pv, o.upv || 0, o.tcnt ? Math.round(o.tsum / o.tcnt) : "", o.tcnt ? Math.round((o.read || 0) / o.tcnt * 100) : "", o.land || 0, o.share || 0, o.save || 0];
+        })));
+      };
+    });
+  }
+
+  // ============================================================ 바른혈압몰
+  var MALL_CATS = [["record", "기록·복약 관리"], ["body", "허리둘레·걷기"], ["kitchen", "덜 짜게 요리하기"], ["exercise", "집에서 하는 운동"]];
+  var MALL_CAT_NAME = {}; MALL_CATS.forEach(function (c) { MALL_CAT_NAME[c[0]] = c[1]; });
+  function viewMall(main) {
+    Promise.all([api("mall"), api("kpi?days=30"), loadMallProducts()]).then(function (res) {
+      var m = res[0], k = res[1], prods = res[2] || [];
+      if (!m.ok) { main.innerHTML = pageHead("바른혈압몰") + '<div class="callout bad">' + esc(errMsg(m)) + "</div>"; return; }
+      var hidden = {}; (m.hidden || []).forEach(function (x) { hidden[x] = 1; });
+      var st = {};
+      if (k.ok) (k.dims || []).forEach(function (r) { if (r.kind === "mall_imp" || r.kind === "mall_click") { var o = st[r.key] = st[r.key] || { imp: 0, clk: 0 }; if (r.kind === "mall_imp") o.imp = r.n; else o.clk = r.n; } });
+      var monthStat = {}; if (k.ok) (k.months || []).forEach(function (r) { (monthStat[r.month] = monthStat[r.month] || {})[r.kind] = r.n; });
+      var thisMonth = kstDay().slice(0, 7);
+      // 월별 실적 표
+      var reps = m.reports || [];
+      var repRows = reps.map(function (r) {
+        var ms = monthStat[r.month] || {}, our = ms.mall_click || 0;
+        return '<tr class="click" data-m="' + esc(r.month) + '"><td><b>' + esc(r.month) + '</b></td><td class="num">' + nf(our) + '</td><td class="num">' + (r.clicks == null ? "-" : nf(r.clicks)) + '</td><td class="num">' + (r.orders == null ? "-" : nf(r.orders)) + '</td><td class="num">' + (r.clicks ? pct(r.orders || 0, r.clicks, 2) : "-") + '</td><td class="num hide-m">' + (r.gmv == null ? "-" : nf(r.gmv) + "원") + '</td><td class="num">' + (r.commission == null ? "-" : nf(r.commission) + "원") + '</td><td class="num hide-m">' + (r.clicks && r.commission != null ? nf(r.commission / r.clicks) + "원" : "-") + '</td><td class="num hide-m">' + (ms.pv_total && r.commission != null ? nf(r.commission / (ms.pv_total / 1000)) + "원" : "-") + "</td></tr>";
+      }).join("");
+      // 상품 표 (기본 상품 + 추가 상품)
+      var rowsStatic = prods.map(function (p) {
+        var s2 = st[p.id] || { imp: 0, clk: 0 }, off = !!hidden[p.id];
+        return '<tr' + (off ? ' style="opacity:.55"' : "") + '><td style="width:64px"><img src="' + esc(p.img) + '" alt="" width="52" height="52" referrerpolicy="no-referrer" style="border-radius:8px;object-fit:contain;background:#f3f5f8;display:block" loading="lazy"></td><td><b>' + esc(p.name) + '</b><div class="muted small">' + esc(p.cat_name) + ' · 기본 상품 · <a href="' + esc(p.url) + '" target="_blank" rel="noopener">링크 확인</a></div></td><td class="num">' + nf(s2.imp) + '</td><td class="num">' + nf(s2.clk) + '</td><td class="num">' + pct(s2.clk, s2.imp) + '</td><td><button class="btn btn-sm ' + (off ? "btn-p" : "btn-s") + '" data-hide="' + esc(p.id) + '" data-on="' + (off ? 0 : 1) + '">' + (off ? "다시 보이기" : "숨기기") + "</button></td></tr>";
+      }).join("");
+      var rowsExtra = (m.items || []).map(function (p) {
+        var s2 = st[p.pid] || { imp: 0, clk: 0 };
+        return '<tr class="click" data-id="' + p.id + '"' + (p.status === "hidden" ? ' style="opacity:.55"' : "") + '><td style="width:64px">' + (p.img ? '<img src="' + esc(p.img) + '" alt="" width="52" height="52" referrerpolicy="no-referrer" style="border-radius:8px;object-fit:contain;background:#f3f5f8;display:block" loading="lazy">' : "") + '</td><td><b>' + esc(p.name) + '</b><div class="muted small">' + esc(MALL_CAT_NAME[p.cat] || p.cat) + " · 추가 상품" + (p.status === "hidden" ? " · 숨김" : "") + '</div></td><td class="num">' + nf(s2.imp) + '</td><td class="num">' + nf(s2.clk) + '</td><td class="num">' + pct(s2.clk, s2.imp) + '</td><td><span class="muted small">눌러서 수정</span></td></tr>';
+      }).join("");
+      var cur = reps.filter(function (r) { return r.month === thisMonth; })[0] || {}, cms = monthStat[thisMonth] || {};
+      main.innerHTML = pageHead("바른혈압몰", "쿠팡 파트너스 제휴 상품과 실적을 관리합니다. 노출·클릭은 자동으로 집계되고, 구매·수익은 쿠팡 파트너스 리포트의 숫자를 월별로 옮겨 적습니다.",
+        '<a class="btn btn-s btn-sm" href="/mall/" target="_blank" rel="noopener">바른혈압몰 열기</a><a class="btn btn-s btn-sm" href="https://partners.coupang.com/" target="_blank" rel="noopener">쿠팡 파트너스</a><button class="btn btn-p btn-sm" id="add">상품 추가</button>') +
+        '<div class="kpis">' +
+        kcard("이번 달 상품 노출", nf(cms.mall_imp || 0)) + kcard("이번 달 쿠팡 클릭", nf(cms.mall_click || 0), '<em class="muted">우리 집계</em>') +
+        kcard("클릭률", pct(cms.mall_click || 0, cms.mall_imp || 0)) +
+        kcard("이번 달 구매 건수", cur.orders == null ? "입력 전" : nf(cur.orders)) +
+        kcard("구매전환율", cur.clicks ? pct(cur.orders || 0, cur.clicks, 2) : "-", '<em class="muted">쿠팡 클릭 기준</em>') +
+        kcard("이번 달 수익", cur.commission == null ? "-" : nf(cur.commission) + "원") + "</div>" +
+        '<div class="card"><h2>쿠팡 실적 입력 <small>쿠팡 파트너스 → 리포트 → 기간별 리포트의 ‘이번 달 집계’를 옮겨 적으세요. 같은 달을 다시 저장하면 덮어씁니다.</small></h2>' +
+        '<div class="mform"><div class="field"><label>월</label><input id="r-month" value="' + esc(thisMonth) + '" placeholder="2026-11"></div><div class="field"><label>클릭(쿠팡 집계)</label><input id="r-clicks" inputmode="numeric" value="' + (cur.clicks == null ? "" : cur.clicks) + '"></div><div class="field"><label>구매 건수</label><input id="r-orders" inputmode="numeric" value="' + (cur.orders == null ? "" : cur.orders) + '"></div><div class="field"><label>취소 건수</label><input id="r-cancels" inputmode="numeric" value="' + (cur.cancels == null ? "" : cur.cancels) + '"></div><div class="field"><label>합산 금액(원)</label><input id="r-gmv" inputmode="numeric" value="' + (cur.gmv == null ? "" : cur.gmv) + '"></div><div class="field"><label>수익(원)</label><input id="r-comm" inputmode="numeric" value="' + (cur.commission == null ? "" : cur.commission) + '"></div><div class="field" style="grid-column:1/-1"><label>메모 (선택)</label><input id="r-memo" maxlength="200" value="' + esc(cur.memo || "") + '"></div></div>' +
+        '<div style="margin-top:10px"><button class="btn btn-p btn-sm" id="r-save">저장</button></div>' +
+        '<div class="table-wrap" style="margin-top:14px"><table><thead><tr><th>월</th><th>클릭(우리)</th><th>클릭(쿠팡)</th><th>구매</th><th>전환율</th><th class="hide-m">구매 금액</th><th>수익</th><th class="hide-m">클릭당 수익</th><th class="hide-m">1천 PV당 수익</th></tr></thead><tbody>' + (repRows || '<tr><td colspan="9" class="empty">아직 입력한 실적이 없습니다.</td></tr>') + "</tbody></table></div>" +
+        '<p class="muted small" style="margin:8px 0 0">‘클릭(우리)’는 바른혈압이 직접 센 쿠팡 링크 클릭입니다. 쿠팡 집계와 차이가 나는 것은 정상입니다(로봇 제외 방식, 추적 거부 브라우저, 중복 클릭 처리 차이). 행을 누르면 그 달 값을 입력란에 불러옵니다.</p></div>' +
+        '<div class="card" style="margin-top:14px"><h2>상품 <small>최근 30일 노출·클릭 · 기본 상품은 숨기기만, 추가 상품은 수정·삭제 가능</small></h2>' +
+        '<div class="table-wrap" style="border:0"><table><thead><tr><th></th><th>상품</th><th>노출</th><th>클릭</th><th>CTR</th><th></th></tr></thead><tbody>' + rowsExtra + rowsStatic + "</tbody></table></div>" +
+        '<div class="callout warn" style="margin-top:12px"><b>상품을 고를 때</b> — 바른혈압 글의 생활 관리와 바로 이어지는 물건만 올립니다. 혈압계 같은 의료기기, 건강기능식품·영양제, ‘혈압을 낮춘다’는 식으로 효능을 내세우는 제품은 올리지 않습니다. 상품 설명에도 효능·순위·‘최고’ 같은 표현을 쓰지 않습니다.</div></div>';
+      var reload = function () { viewMall(main); };
+      document.getElementById("add").onclick = function () { openMallItem(null, reload); };
+      document.getElementById("r-save").onclick = function () {
+        var v = function (id) { return document.getElementById(id).value; };
+        api("mall/report", { body: { month: v("r-month").trim(), clicks: v("r-clicks"), orders: v("r-orders"), cancels: v("r-cancels"), gmv: v("r-gmv"), commission: v("r-comm"), memo: v("r-memo") } }).then(function (j) { if (j.ok) { toast("저장했습니다."); reload(); } else toast(errMsg(j), true); });
+      };
+      main.querySelectorAll("tr[data-m]").forEach(function (tr) { tr.onclick = function () {
+        var r = reps.filter(function (x) { return x.month === tr.dataset.m; })[0]; if (!r) return;
+        var set = function (id, val) { document.getElementById(id).value = val == null ? "" : val; };
+        set("r-month", r.month); set("r-clicks", r.clicks); set("r-orders", r.orders); set("r-cancels", r.cancels); set("r-gmv", r.gmv); set("r-comm", r.commission); set("r-memo", r.memo);
+        document.getElementById("r-month").scrollIntoView({ behavior: "smooth", block: "center" });
+      }; });
+      main.querySelectorAll("[data-hide]").forEach(function (b) { b.onclick = function (e) {
+        e.stopPropagation();
+        api("mall/hide", { body: { pid: b.dataset.hide, hidden: b.dataset.on === "1" } }).then(function (j) { if (j.ok) { toast(b.dataset.on === "1" ? "숨겼습니다. 5분 안에 바른혈압몰에 반영됩니다." : "다시 보이게 했습니다."); reload(); } else toast(errMsg(j), true); });
+      }; });
+      main.querySelectorAll("tr[data-id]").forEach(function (tr) { tr.onclick = function () { openMallItem((m.items || []).filter(function (x) { return String(x.id) === tr.dataset.id; })[0], reload); }; });
+    });
+  }
+  function openMallItem(it, done) {
+    it = it || {};
+    var body = '<div class="callout" style="margin-bottom:12px">쿠팡 파트너스에서 <b>링크 생성 → 상품 검색 → 링크 생성</b>을 누르면 나오는 <b>단축 URL</b>(https://link.coupang.com/a/…)을 붙여 넣으세요. 사진 주소는 같은 화면의 상품 사진에서 마우스 오른쪽 → ‘이미지 주소 복사’로 가져옵니다.</div>' +
+      '<div class="row2"><div class="field"><label>분류</label><select data-cat>' + MALL_CATS.map(function (c) { return '<option value="' + c[0] + '"' + (c[0] === it.cat ? " selected" : "") + ">" + c[1] + "</option>"; }).join("") + '</select></div><div class="field"><label>쿠팡 상품번호 (선택)</label><input data-pid inputmode="numeric" placeholder="예: 7054527545" value="' + esc(it.pid && /^\d+$/.test(it.pid) ? it.pid : "") + '"' + (it.id ? " disabled" : "") + '><div class="hint">넣어 두면 통계에서 상품을 구분하기 쉽습니다.</div></div></div>' +
+      '<div class="field" style="margin-top:10px"><label>상품 이름 (사이트에 보일 이름)</label><input data-name maxlength="60" value="' + esc(it.name || "") + '"></div>' +
+      '<div class="field" style="margin-top:10px"><label>쿠팡 파트너스 링크</label><input data-url placeholder="https://link.coupang.com/a/..." value="' + esc(it.url || "") + '"></div>' +
+      '<div class="field" style="margin-top:10px"><label>사진 주소</label><input data-img placeholder="https://thumbnail...coupangcdn.com/..." value="' + esc(it.img || "") + '"><div data-pv style="margin-top:8px"></div></div>' +
+      '<div class="field" style="margin-top:10px"><label>설명 (한두 문장, 효능·순위 표현 없이)</label><textarea data-note maxlength="200">' + esc(it.note || "") + "</textarea></div>" +
+      '<div class="row2" style="margin-top:10px"><div class="field"><label>정렬 (클수록 앞)</label><input data-sort type="number" value="' + (it.sort || 0) + '"></div><div class="field"><label>상태</label><select data-st><option value="visible"' + (it.status !== "hidden" ? " selected" : "") + '>공개</option><option value="hidden"' + (it.status === "hidden" ? " selected" : "") + ">숨김</option></select></div></div>";
+    var d = openDrawer(it.id ? "상품 수정" : "상품 추가", body, (it.id ? '<div class="left"><button class="btn btn-d btn-sm" data-del>삭제</button></div>' : "") + '<button class="btn btn-p" data-save>' + (it.id ? "저장" : "추가") + "</button>");
+    var img = d.querySelector("[data-img]"), pv = d.querySelector("[data-pv]");
+    var show = function () { var u = img.value.trim(); pv.innerHTML = /^https:\/\/[a-z0-9.-]+\.coupangcdn\.com\//.test(u) ? '<img src="' + esc(u) + '" alt="미리보기" width="120" height="120" referrerpolicy="no-referrer" style="border-radius:8px;object-fit:contain;background:#f3f5f8">' : (u ? '<span class="muted small">쿠팡 이미지 주소(…coupangcdn.com)만 쓸 수 있습니다.</span>' : ""); };
+    img.oninput = show; show();
+    d.querySelector("[data-save]").onclick = function () {
+      var q2 = function (s2) { return d.querySelector(s2).value; };
+      api("mall/item", { body: { id: it.id || 0, cat: q2("[data-cat]"), pid: q2("[data-pid]"), name: q2("[data-name]"), url: q2("[data-url]").trim(), img: q2("[data-img]").trim(), note: q2("[data-note]"), sort: q2("[data-sort]"), status: q2("[data-st]") } })
+        .then(function (j) { if (j.ok) { toast("저장했습니다. 5분 안에 바른혈압몰에 반영됩니다."); closeDrawer(); done(); } else toast(errMsg(j), true); });
+    };
+    var del = d.querySelector("[data-del]");
+    if (del) del.onclick = function () { confirmBox("상품을 삭제할까요?", "<p>바른혈압몰에서 사라집니다. 지난 클릭 기록은 남습니다.</p>", "삭제", true).then(function (ok) { if (ok) api("mall/item/delete", { body: { id: it.id } }).then(function (j) { if (j.ok) { toast("삭제했습니다."); closeDrawer(); done(); } else toast(errMsg(j), true); }); }); };
   }
 
   // ============================================================ 시작

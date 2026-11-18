@@ -1,4 +1,4 @@
--- 바른혈압 D1 스키마 (버전 4)
+-- 바른혈압 D1 스키마 (버전 5)
 --
 -- 이 파일을 직접 실행하지 않아도 됩니다.
 -- D1을 DB라는 이름으로 연결해 두면, 사이트의 API가 첫 요청 때 아래 표를 자동으로 만들고
@@ -131,7 +131,8 @@ CREATE INDEX IF NOT EXISTS idx_audit_ts ON audit_log(ts);
 -- 익명 이용 통계 (날짜별 합계만. 개인 식별자 없음)
 CREATE TABLE IF NOT EXISTS stats_daily (
   day TEXT NOT NULL,           -- KST 날짜
-  kind TEXT NOT NULL,          -- pv | pv_total | ref | visitor | event | search
+  kind TEXT NOT NULL,          -- pv, pv_total, ref, visitor, uv, upv, session, session2, src, device, land,
+                               -- tsum, tcnt, eng, read, event, ev_p, search, out, cta, mall_click, mall_click_page, mall_imp, mall_box
   key TEXT NOT NULL,
   n INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (day, kind, key)
@@ -255,3 +256,36 @@ CREATE TABLE IF NOT EXISTS videos (
   created_at TEXT NOT NULL,
   created_by TEXT
 );
+
+-- ============================================================
+-- 버전 5: 바른혈압몰(쿠팡 파트너스) · KPI
+-- ============================================================
+
+-- 운영자가 관리자 콘솔에서 추가한 몰 상품 (기본 상품 21개는 사이트 페이지에 들어 있음)
+CREATE TABLE IF NOT EXISTS mall_items (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  pid TEXT NOT NULL,                        -- 쿠팡 상품번호(없으면 자동 번호)
+  cat TEXT NOT NULL,                        -- record | body | kitchen | exercise
+  name TEXT NOT NULL,
+  url TEXT NOT NULL,                        -- https://link.coupang.com/a/... 만 허용
+  img TEXT,                                 -- *.coupangcdn.com 이미지만 허용
+  note TEXT,
+  status TEXT NOT NULL DEFAULT 'visible',   -- visible | hidden
+  sort INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  created_by TEXT
+);
+
+-- 쿠팡 파트너스 리포트에서 옮겨 적는 월별 실적 (쿠팡은 구매 정보를 사이트로 보내 주지 않음)
+CREATE TABLE IF NOT EXISTS mall_reports (
+  month TEXT PRIMARY KEY,                   -- YYYY-MM
+  clicks INTEGER,                           -- 쿠팡이 집계한 클릭
+  orders INTEGER,                           -- 구매 건수
+  cancels INTEGER,
+  gmv INTEGER,                              -- 구매 금액 합계(원)
+  commission INTEGER,                       -- 수익(원)
+  memo TEXT,
+  updated_at TEXT,
+  updated_by TEXT
+);
+-- 기본 상품 숨김 목록은 settings 표의 key = 'mall_hidden' (JSON 배열)에 저장한다.

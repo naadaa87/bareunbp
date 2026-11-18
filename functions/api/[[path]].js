@@ -11,11 +11,13 @@
  *
  * 원칙
  *   - 혈압 값 등 개인 건강정보는 서버에 저장하지 않는다. 회원 계정에도 연결하지 않는다.
- *   - 통계는 경로·날짜·이벤트 이름만 집계한다.
+ *   - 통계는 경로·날짜·이벤트 이름만 집계한다. (방문자·체류시간도 브라우저가 보낸 '처음 여부'·'초' 값을 날짜별로 더할 뿐, 식별자를 받지 않는다)
+ *   - 바른혈압몰 상품 링크는 쿠팡 파트너스 단축 주소만 받는다.
  *   - 회원 비밀번호는 브라우저에서 PBKDF2로 늘린 값만 받아, 서버에서 회원별 소금값으로 한 번 더 해시해 저장한다.
  */
 
-const SCHEMA_VERSION = 4;
+const SCHEMA_VERSION = 5;
+const KPI_SINCE = "2026-11-18"; // 방문자·세션·체류·몰 지표 집계 시작일 (KST)
 const USER_COOKIE = "bp_user";
 const USER_SESSION_DAYS = 30;
 const JSON_HEADERS = { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" };
@@ -97,6 +99,8 @@ const TABLES = [
   `CREATE TABLE IF NOT EXISTS post_likes (post_id INTEGER NOT NULL, user_id INTEGER NOT NULL, created_at TEXT NOT NULL, PRIMARY KEY (post_id, user_id))`,
   `CREATE TABLE IF NOT EXISTS ugc_reports (id INTEGER PRIMARY KEY AUTOINCREMENT, target_type TEXT NOT NULL, target_id INTEGER NOT NULL, user_id INTEGER NOT NULL, reason TEXT NOT NULL, detail TEXT, created_at TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'open', handled_by TEXT, handled_at TEXT, UNIQUE (target_type, target_id, user_id))`,
   `CREATE TABLE IF NOT EXISTS videos (id INTEGER PRIMARY KEY AUTOINCREMENT, youtube_id TEXT NOT NULL, title TEXT NOT NULL, source TEXT, category TEXT, note TEXT, status TEXT NOT NULL DEFAULT 'visible', sort INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, created_by TEXT)`,
+  `CREATE TABLE IF NOT EXISTS mall_items (id INTEGER PRIMARY KEY AUTOINCREMENT, pid TEXT NOT NULL, cat TEXT NOT NULL, name TEXT NOT NULL, url TEXT NOT NULL, img TEXT, note TEXT, status TEXT NOT NULL DEFAULT 'visible', sort INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, created_by TEXT)`,
+  `CREATE TABLE IF NOT EXISTS mall_reports (month TEXT PRIMARY KEY, clicks INTEGER, orders INTEGER, cancels INTEGER, gmv INTEGER, commission INTEGER, memo TEXT, updated_at TEXT, updated_by TEXT)`,
   `CREATE INDEX IF NOT EXISTS idx_qna_status ON qna(status, created_at)`,
   `CREATE INDEX IF NOT EXISTS idx_reviews_path ON content_reviews(path, reviewed_at)`,
   `CREATE INDEX IF NOT EXISTS idx_audit_ts ON audit_log(ts)`,
@@ -244,6 +248,15 @@ export async function onRequest(context) {
       const { results } = await env.DB.prepare("SELECT id, date, target_path, target_title, content, reason FROM corrections ORDER BY date DESC, id DESC LIMIT 200").all();
       return json({ ok: true, items: results }, 200, { "Cache-Control": "public, max-age=300" });
     }
+    if (path === "mall") {
+      const [items, hid] = await env.DB.batch([
+        env.DB.prepare("SELECT pid, cat, name, url, img, note FROM mall_items WHERE status = 'visible' ORDER BY sort DESC, id DESC LIMIT 200"),
+        env.DB.prepare("SELECT value FROM settings WHERE key = 'mall_hidden'"),
+      ]);
+      let hidden = [];
+      try { hidden = JSON.parse((hid.results[0] || {}).value || "[]"); } catch (e) {}
+      return json({ ok: true, items: items.results, hidden }, 200, { "Cache-Control": "public, max-age=300" });
+    }
     if (path === "newsletter/unsubscribe") return unsubscribePage(env, url);
     return json({ ok: false, error: "unknown_endpoint" }, 404);
   }
@@ -316,27 +329,83 @@ export async function onRequest(context) {
 }
 
 // ------------------------------------------------------------------ 통계 기록
-const EVENTS = new Set(["share", "video_play", "record_saved", "quick_entry", "csv_export", "report_view", "report_print", "timer_start", "timer_done", "sodium_use", "meds_check", "reminder_ics", "backup_export", "backup_import", "challenge_done", "form_qna", "form_lead", "form_newsletter", "form_report", "search", "logsheet_print", "recipe_print", "mealplan_print"]);
+const EVENTS = new Set(["share", "save", "video_play", "record_saved", "quick_entry", "csv_export", "report_view", "report_print", "timer_start", "timer_done", "sodium_use", "meds_check", "reminder_ics", "backup_export", "backup_import", "challenge_done", "form_qna", "form_lead", "form_newsletter", "form_report", "search", "logsheet_print", "recipe_print", "mealplan_print", "mall_click", "mall_view", "mall_box", "out", "cta"]);
+// 유입 경로 분류 (방문이 시작될 때 한 번)
+const SOURCES = [
+  [/(^|\.)(chatgpt\.com|openai\.com|perplexity\.ai|claude\.ai|gemini\.google\.com|copilot\.microsoft\.com)$/, "ai"],
+  [/^(m\.)?search\.naver\.com$/, "naver"],
+  [/(^|\.)google\.[a-z.]+$/, "google"],
+  [/(^|\.)daum\.net$/, "daum"],
+  [/(^|\.)bing\.com$/, "bing"],
+  [/(^|\.)(naver\.com|naver\.me)$/, "naver_etc"],
+  [/(^|\.)band\.us$/, "band"],
+  [/(^|\.)(kakao\.com|kakaocdn\.net)$/, "kakao"],
+  [/(^|\.)(facebook\.com|fb\.com)$/, "facebook"],
+  [/(^|\.)instagram\.com$/, "instagram"],
+  [/(^|\.)(youtube\.com|youtu\.be)$/, "youtube"],
+  [/(^|\.)(x\.com|twitter\.com|t\.co)$/, "x"],
+  [/(^|\.)threads\.(net|com)$/, "threads"],
+];
+function sourceOf(host) {
+  if (!host) return "direct";
+  for (const [re, k] of SOURCES) if (re.test(host)) return k;
+  return "other";
+}
 async function recordHit(env, b, ownHost) {
   const day = kstDay();
   const stmts = [];
-  const up = (kind, key) => stmts.push(env.DB.prepare("INSERT INTO stats_daily (day, kind, key, n) VALUES (?1, ?2, ?3, 1) ON CONFLICT(day, kind, key) DO UPDATE SET n = n + 1").bind(day, kind, key));
+  const add = (kind, key, v) => stmts.push(env.DB.prepare("INSERT INTO stats_daily (day, kind, key, n) VALUES (?1, ?2, ?3, ?4) ON CONFLICT(day, kind, key) DO UPDATE SET n = n + ?4").bind(day, kind, key, v));
+  const up = (kind, key) => add(kind, key, 1);
   let p = clean(b.p, 160).split("?")[0].split("#")[0].replace(/\/index\.html$/, "/").replace(/\.html$/, "");
   if (!p || !/^\/[A-Za-z0-9\-_/.]*$/.test(p) || p.startsWith("/admin") || p.startsWith("/api")) return;
   const ev = clean(b.e, 30);
-  if (ev) {
+  if (ev === "_t") {
+    // 머문 시간(초, 화면에 보인 시간만)과 스크롤 정도(%)
+    const t = Math.max(0, Math.min(1800, parseInt(b.t, 10) || 0)), sc = Math.max(0, Math.min(100, parseInt(b.sc, 10) || 0));
+    if (t < 1) return;
+    add("tsum", p, t);
+    up("tcnt", p);
+    if (t >= 10) up("eng", p);
+    if (sc >= 75 && t >= 15) up("read", p);
+  } else if (ev) {
     if (!EVENTS.has(ev)) return;
     up("event", ev);
+    const k = clean(b.k, 40);
     if (ev === "search") {
-      const q = clean(b.q, 40).toLowerCase().replace(/\s+/g, " ");
-      if (q.length >= 1) up("search", q);
+      const qq = clean(b.q, 40).toLowerCase().replace(/\s+/g, " ");
+      if (qq.length >= 1) up("search", qq);
+    } else if (ev === "mall_click") {
+      if (/^[A-Za-z0-9_-]{1,30}$/.test(k)) { up("mall_click", k); up("mall_click_page", p); }
+    } else if (ev === "mall_view") {
+      const ids = Array.isArray(b.ids) ? b.ids.slice(0, 40) : [];
+      for (const i of ids) { const v = clean(String(i), 30); if (/^[A-Za-z0-9_-]{1,30}$/.test(v)) up("mall_imp", v); }
+    } else if (ev === "mall_box") {
+      up("mall_box", p);
+    } else if (ev === "out") {
+      const h = k.toLowerCase();
+      if (/^[a-z0-9.-]{3,60}$/.test(h)) up("out", h);
+    } else if (ev === "cta") {
+      const l = k.replace(/[<>"'`\\]/g, "").trim();
+      if (l) up("cta", (p + " ▸ " + l).slice(0, 160));
+    } else {
+      up("ev_p", ev + "|" + p);
     }
   } else {
     up("pv", p);
     up("pv_total", "all");
     const r = clean(b.r, 80).toLowerCase();
-    if (r && /^[a-z0-9.\-]+$/.test(r) && r !== ownHost) up("ref", r.replace(/^www\./, "").replace(/^m\./, ""));
+    const ext = r && /^[a-z0-9.\-]+$/.test(r) && r !== ownHost ? r : "";
+    if (ext) up("ref", ext.replace(/^www\./, "").replace(/^m\./, ""));
     if (b.n === 1) up("visitor", "new");
+    if (b.v === 1) up("uv", "all");
+    if (b.u === 1) up("upv", p);
+    if (b.s === 1) {
+      up("session", "all");
+      up("src", sourceOf(ext));
+      up("device", b.d === "m" ? "mobile" : "desktop");
+      up("land", p);
+    }
+    if (b.s2 === 1) up("session2", "all");
   }
   if (stmts.length) await env.DB.batch(stmts);
 }
@@ -711,6 +780,7 @@ async function admin(context, sub, method, ip, url) {
         (SELECT COUNT(*) FROM users WHERE status != 'deleted') AS users, (SELECT COUNT(*) FROM posts WHERE status != 'deleted') AS posts,
         (SELECT COUNT(*) FROM comments WHERE status != 'deleted') AS comments, (SELECT COUNT(*) FROM bookmarks) AS bookmarks,
         (SELECT COUNT(*) FROM ugc_reports) AS ugc_reports, (SELECT COUNT(*) FROM videos) AS videos,
+        (SELECT COUNT(*) FROM mall_items) AS mall_items, (SELECT COUNT(*) FROM mall_reports) AS mall_reports,
         (SELECT MIN(day) FROM stats_daily) AS stats_from`).first();
       const purgeable = await db.prepare(`SELECT
         (SELECT COUNT(*) FROM leads WHERE status IN ('done','hold') AND COALESCE(updated_at, created_at) < ?1) AS leads,
@@ -744,7 +814,7 @@ async function admin(context, sub, method, ip, url) {
     }
     if (sub === "export" && method === "GET") {
       if (sess.role !== "admin") return deny();
-      const names = ["qna", "leads", "newsletter", "factcheck_reports", "content_reviews", "corrections", "settings", "audit_log", "stats_daily", "posts", "comments", "post_likes", "bookmarks", "ugc_reports", "videos"];
+      const names = ["qna", "leads", "newsletter", "factcheck_reports", "content_reviews", "corrections", "settings", "audit_log", "stats_daily", "posts", "comments", "post_likes", "bookmarks", "ugc_reports", "videos", "mall_items", "mall_reports"];
       const out = { app: "bareunbp", exported_at: nowIso(), schema_version: SCHEMA_VERSION, tables: {} };
       const rs = await db.batch(names.map((n) => db.prepare(`SELECT * FROM ${n}`)));
       names.forEach((n, i) => { out.tables[n] = rs[i].results; });
@@ -934,6 +1004,111 @@ async function admin(context, sub, method, ip, url) {
       await db.batch(stmts);
       await audit(env, sess, "ugc_resolve", tt + "#" + tid, hide ? "신고 인정 · 숨김" : "문제 없음 · 유지");
       return json({ ok: true });
+    }
+
+    // ---------------- KPI
+    if (sub === "kpi" && method === "GET") {
+      if (sess.role !== "admin") return deny();
+      const days = Math.min(365, Math.max(1, parseInt(url.searchParams.get("days") || "30", 10) || 30));
+      const to = kstDay(), from = kstDay(days - 1), pto = kstDay(days), pfrom = kstDay(days * 2 - 1);
+      // 방문자·세션·체류시간 같은 지표는 KPI_SINCE부터 쌓였다. 그 전 날짜가 섞이면 비율이 어긋나므로 기간 합계는 이날부터 센다
+      const sfrom = from < KPI_SINCE ? KPI_SINCE : from, compare = pfrom >= KPI_SINCE;
+      const iso = (d) => new Date(d + "T00:00:00+09:00").toISOString();
+      const fromIso = iso(from), pfromIso = iso(pfrom);
+      const y1 = kstDay(400).slice(0, 7);
+      const [series, cur, prev, pages, dims, ugc, months, reports] = await db.batch([
+        db.prepare("SELECT day, kind, SUM(n) AS n FROM stats_daily WHERE day >= ?1 AND kind IN ('pv_total','uv','session','session2','visitor','mall_click') GROUP BY day, kind").bind(from),
+        db.prepare("SELECT kind, SUM(n) AS n FROM stats_daily WHERE day >= ?1 GROUP BY kind").bind(sfrom),
+        db.prepare("SELECT kind, SUM(n) AS n FROM stats_daily WHERE day >= ?1 AND day <= ?2 GROUP BY kind").bind(compare ? pfrom : "9999", pto),
+        db.prepare("SELECT kind, key, SUM(n) AS n FROM stats_daily WHERE day >= ?1 AND kind IN ('pv','upv','tsum','tcnt','eng','read','land','mall_box') GROUP BY kind, key").bind(sfrom),
+        db.prepare("SELECT kind, key, SUM(n) AS n FROM stats_daily WHERE day >= ?1 AND kind IN ('src','device','ref','search','event','out','cta','mall_click','mall_imp','mall_click_page','ev_p') GROUP BY kind, key ORDER BY n DESC LIMIT 4000").bind(sfrom),
+        db.prepare(`SELECT
+          (SELECT COUNT(*) FROM users WHERE created_at >= ?1) AS signups, (SELECT COUNT(*) FROM users WHERE created_at >= ?2 AND created_at < ?1) AS signups_prev,
+          (SELECT COUNT(*) FROM posts WHERE created_at >= ?1 AND status != 'deleted') AS posts, (SELECT COUNT(*) FROM posts WHERE created_at >= ?2 AND created_at < ?1 AND status != 'deleted') AS posts_prev,
+          (SELECT COUNT(*) FROM comments WHERE created_at >= ?1 AND status != 'deleted') AS comments, (SELECT COUNT(*) FROM comments WHERE created_at >= ?2 AND created_at < ?1 AND status != 'deleted') AS comments_prev,
+          (SELECT COUNT(*) FROM newsletter WHERE created_at >= ?1) AS newsletter, (SELECT COUNT(*) FROM newsletter WHERE created_at >= ?2 AND created_at < ?1) AS newsletter_prev,
+          (SELECT COUNT(*) FROM qna WHERE created_at >= ?1) AS qna, (SELECT COUNT(*) FROM qna WHERE created_at >= ?2 AND created_at < ?1) AS qna_prev,
+          (SELECT COUNT(*) FROM users WHERE status != 'deleted') AS members`).bind(fromIso, pfromIso),
+        db.prepare("SELECT substr(day, 1, 7) AS month, kind, SUM(n) AS n FROM stats_daily WHERE substr(day, 1, 7) >= ?1 AND kind IN ('mall_click','mall_imp','pv_total','uv','session') GROUP BY month, kind").bind(y1),
+        db.prepare("SELECT * FROM mall_reports ORDER BY month DESC LIMIT 24"),
+      ]);
+      const tot = (rows) => Object.fromEntries(rows.results.map((r) => [r.kind, r.n]));
+      return json({ ok: true, days, range: { from, to, prev_from: pfrom, prev_to: pto, since: KPI_SINCE, stat_from: sfrom, compare }, series: series.results, cur: tot(cur), prev: tot(prev), pages: pages.results, dims: dims.results, ugc: ugc.results[0], months: months.results, reports: reports.results });
+    }
+
+    // ---------------- 바른혈압몰
+    const MALL_CATS = ["record", "body", "kitchen", "exercise"];
+    const mallUrl = (u) => (/^https:\/\/(link\.coupang\.com|coupa\.ng)\/[A-Za-z0-9/_\-?=&.]{2,200}$/.test(u || "") ? u : "");
+    const mallImg = (u) => (/^https:\/\/[a-z0-9.-]+\.coupangcdn\.com\/[A-Za-z0-9/_\-.%]{5,300}$/.test(u || "") ? u : "");
+    if (sub === "mall" && method === "GET") {
+      if (sess.role !== "admin") return deny();
+      const [items, hid, reports] = await db.batch([
+        db.prepare("SELECT * FROM mall_items ORDER BY sort DESC, id DESC LIMIT 500"),
+        db.prepare("SELECT value FROM settings WHERE key = 'mall_hidden'"),
+        db.prepare("SELECT * FROM mall_reports ORDER BY month DESC LIMIT 36"),
+      ]);
+      let hidden = [];
+      try { hidden = JSON.parse((hid.results[0] || {}).value || "[]"); } catch (e) {}
+      return json({ ok: true, items: items.results, hidden, reports: reports.results });
+    }
+    if (sub.startsWith("mall/") && method === "POST") {
+      if (sess.role !== "admin") return deny();
+      const num = (v) => { const x = parseInt(String(v == null ? "" : v).replace(/[^0-9-]/g, ""), 10); return isNaN(x) ? null : Math.max(0, Math.min(1e12, x)); };
+      if (sub === "mall/report") {
+        const month = clean(body.month, 7);
+        if (!/^20\d\d-(0[1-9]|1[0-2])$/.test(month)) return json({ ok: false, error: "월을 2026-11 형식으로 입력하세요." }, 400);
+        const v = [num(body.clicks), num(body.orders), num(body.cancels), num(body.gmv), num(body.commission)];
+        await db.prepare("INSERT INTO mall_reports (month, clicks, orders, cancels, gmv, commission, memo, updated_at, updated_by) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9) ON CONFLICT(month) DO UPDATE SET clicks = excluded.clicks, orders = excluded.orders, cancels = excluded.cancels, gmv = excluded.gmv, commission = excluded.commission, memo = excluded.memo, updated_at = excluded.updated_at, updated_by = excluded.updated_by")
+          .bind(month, v[0], v[1], v[2], v[3], v[4], clean(body.memo, 200), nowIso(), sess.name).run();
+        await audit(env, sess, "mall_report", month, `클릭 ${v[0] ?? "-"} · 구매 ${v[1] ?? "-"} · 수익 ${v[4] ?? "-"}`);
+        return json({ ok: true });
+      }
+      if (sub === "mall/report/delete") {
+        const month = clean(body.month, 7);
+        await db.prepare("DELETE FROM mall_reports WHERE month = ?1").bind(month).run();
+        await audit(env, sess, "mall_report_delete", month, null);
+        return json({ ok: true });
+      }
+      if (sub === "mall/hide") {
+        const pid = clean(body.pid, 30);
+        if (!/^[A-Za-z0-9_-]{1,30}$/.test(pid)) return json({ ok: false, error: "bad_pid" }, 400);
+        const row = await db.prepare("SELECT value FROM settings WHERE key = 'mall_hidden'").first();
+        let list = [];
+        try { list = JSON.parse((row || {}).value || "[]"); } catch (e) {}
+        list = list.filter((x) => x !== pid);
+        if (body.hidden) list.push(pid);
+        await db.prepare("INSERT INTO settings (key, value, updated_at) VALUES ('mall_hidden', ?1, ?2) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at").bind(JSON.stringify(list.slice(0, 500)), nowIso()).run();
+        await audit(env, sess, "mall_hide", pid, body.hidden ? "숨김" : "다시 보이기");
+        return json({ ok: true, hidden: list });
+      }
+      if (sub === "mall/item/delete") {
+        const iid = parseInt(body.id, 10) || 0;
+        const row = await db.prepare("SELECT name FROM mall_items WHERE id = ?1").bind(iid).first();
+        await db.prepare("DELETE FROM mall_items WHERE id = ?1").bind(iid).run();
+        await audit(env, sess, "mall_item_delete", "mall#" + iid, row ? row.name : "");
+        return json({ ok: true });
+      }
+      if (sub === "mall/item") {
+        const iid = parseInt(body.id, 10) || 0;
+        const cat = MALL_CATS.includes(body.cat) ? body.cat : "";
+        const name = clean(body.name, 60), note = clean(body.note, 200), u = mallUrl(clean(body.url, 220)), img = mallImg(clean(body.img, 320));
+        const status = body.status === "hidden" ? "hidden" : "visible", sort = Math.max(-999, Math.min(999, parseInt(body.sort || "0", 10) || 0));
+        if (!cat) return json({ ok: false, error: "분류를 고르세요." }, 400);
+        if (!name) return json({ ok: false, error: "상품 이름을 입력하세요." }, 400);
+        if (!u) return json({ ok: false, error: "쿠팡 파트너스에서 만든 링크(https://link.coupang.com/a/...)를 붙여 넣으세요." }, 400);
+        if (clean(body.img, 320) && !img) return json({ ok: false, error: "이미지 주소는 쿠팡 이미지(…coupangcdn.com) 주소만 쓸 수 있습니다." }, 400);
+        if (iid) {
+          await db.prepare("UPDATE mall_items SET cat = ?1, name = ?2, url = ?3, img = ?4, note = ?5, status = ?6, sort = ?7 WHERE id = ?8").bind(cat, name, u, img, note, status, sort, iid).run();
+          await audit(env, sess, "mall_item_edit", "mall#" + iid, name);
+        } else {
+          const pid0 = clean(body.pid, 30);
+          const pid = /^\d{3,15}$/.test(pid0) ? pid0 : "a" + Date.now().toString(36);
+          await db.prepare("INSERT INTO mall_items (pid, cat, name, url, img, note, status, sort, created_at, created_by) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)").bind(pid, cat, name, u, img, note, status, sort, nowIso(), sess.name).run();
+          await audit(env, sess, "mall_item_add", null, name);
+        }
+        return json({ ok: true });
+      }
+      return json({ ok: false, error: "unknown_endpoint" }, 404);
     }
 
     // ---------------- 영상 관리

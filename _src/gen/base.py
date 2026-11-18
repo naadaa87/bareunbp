@@ -8,6 +8,7 @@ TAGLINE = "올바른 정보, 건강한 오늘"
 REVIEW_DATE = "2026-11-07"
 FIRST_PUBLISHED = "2026-09-04"
 NEW_DATE = "2026-11-14"
+MALL_DATE = "2026-11-18"     # 바른혈압몰·KPI 추가일
 LAUNCH_DATE = "2026-11-16"   # 정식 오픈일      # 3차 확충분의 작성·검토일
 # 검색엔진 소유확인 코드 — 발급받으면 따옴표 안에 넣고 다시 빌드 (README 참고)
 NAVER_VERIFY = "c319690d7b48cb8034329f4bbce2c30dcc63eab2"   # 네이버 서치어드바이저 (https://bareunbp.com)
@@ -24,6 +25,7 @@ NAV = [
     ("/tools/", "도구"),
     ("/community/", "커뮤니티"),
     ("/clinic/", "진료 준비"),
+    ("/mall/", "바른혈압몰"),
 ]
 
 ICONS = {
@@ -48,6 +50,7 @@ ICONS = {
     "user": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>',
     "video": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m10 9 5 3-5 3z"/></svg>',
     "library": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v16M9 4v16M14 5l5 15"/><path d="M4 8h5M4 16h5"/></svg>',
+    "bag": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1 12H6L5 8z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>',
     "chart": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V4M4 20h16"/><path d="M8 16v-5M12 16V8M16 16v-8"/></svg>',
     "board": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>',
     "device": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="3"/><path d="M9 8h6M9 12h6M12 16h.01"/></svg>',
@@ -172,7 +175,7 @@ def footer(extra_js=""):
 </div>
 <div><h4>시작하기</h4><ul><li><a href="/measure/">바르게 재기</a></li><li><a href="/check7/">7일 혈압 기록</a></li><li><a href="/report/">진료 준비 리포트</a></li><li><a href="/tools/">도구 모음</a></li><li><a href="/tools/log-sheet/">인쇄용 혈압 기록지</a></li><li><a href="/family/">가족과 함께 관리</a></li></ul></div>
 <div><h4>알아보기</h4><ul><li><a href="/info/">건강정보</a></li><li><a href="/info/reading-numbers.html">혈압 정상수치 표</a></li><li><a href="/food/">음식·식단</a></li><li><a href="/food/sodium-table.html">외식 나트륨 함량표</a></li><li><a href="/food/recipes/">저염 레시피</a></li><li><a href="/factcheck/">팩트체크</a></li><li><a href="/videos/">영상으로 배우기</a></li><li><a href="/library/">공신력 있는 자료실</a></li><li><a href="/stats/">숫자로 보는 고혈압</a></li><li><a href="/glossary/">고혈압 용어사전</a></li><li><a href="/faq/">자주 묻는 질문</a></li></ul></div>
-<div><h4>함께하기</h4><ul><li><a href="/community/board/">자유게시판</a></li><li><a href="/community/">질문과 답변</a></li><li><a href="/community/challenges/">혈압 관리 챌린지</a></li><li><a href="/devices/">혈압계 가이드</a></li><li><a href="/products/">관리용품 가이드</a></li><li><a href="/clinic/">진료 준비·병의원</a></li><li><a href="/partners/">기관 협력</a></li><li><a href="/my/">마이페이지·저장한 글</a></li><li><a href="/account/signup/">회원가입</a></li></ul></div>
+<div><h4>함께하기</h4><ul><li><a href="/community/board/">자유게시판</a></li><li><a href="/community/">질문과 답변</a></li><li><a href="/community/challenges/">혈압 관리 챌린지</a></li><li><a href="/devices/">혈압계 가이드</a></li><li><a href="/products/">관리용품 가이드</a></li><li><a href="/mall/">바른혈압몰</a></li><li><a href="/clinic/">진료 준비·병의원</a></li><li><a href="/partners/">기관 협력</a></li><li><a href="/my/">마이페이지·저장한 글</a></li><li><a href="/account/signup/">회원가입</a></li></ul></div>
 <div><h4>바른혈압</h4><ul><li><a href="/about/">소개·운영 원칙</a></li><li><a href="/policy/editorial.html">편집·감수·정정 정책</a></li><li><a href="/policy/corrections.html">정정 이력</a></li><li><a href="/policy/community.html">게시판 운영 원칙</a></li><li><a href="/policy/privacy.html">개인정보 처리방침</a></li><li><a href="/policy/terms.html">이용약관</a></li><li><a href="/rss.xml">RSS 구독</a></li></ul></div>
 </div>
 <div class="legal">
@@ -224,7 +227,7 @@ def page_head(title, lead, crumbs=None, path=None):
     return f'<section class="page-head"><div class="wrap">{c}<h1>{title}</h1>{lead_html}</div></section>{ld}'
 
 
-def evidence(kind, certainty, target, cois="광고·제휴 없음", date=REVIEW_DATE, note=None):
+def evidence(kind, certainty, target, cois="본문 광고·제휴 링크 없음", date=REVIEW_DATE, note=None):
     cls = {"높음": "cert--high", "중간": "cert--mid", "낮음": "cert--low", "판단 어려움": "cert--low"}.get(certainty, "")
     n = f'<p class="evidence-note">{note}</p>' if note else ""
     return f"""<div class="evidence" aria-label="근거 표시">

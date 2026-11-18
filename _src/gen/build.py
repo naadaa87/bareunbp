@@ -4,7 +4,8 @@ from email.utils import format_datetime
 from datetime import datetime, timezone, timedelta
 sys.path.insert(0, os.path.dirname(__file__))
 import content  # noqa: F401  (기존 글에 2차 확충분 병합)
-from base import write, pretty, SITE, BRAND, REVIEW_DATE, NEW_DATE, OUT
+from base import write, pretty, SITE, BRAND, REVIEW_DATE, NEW_DATE, MALL_DATE, OUT
+import mall as MALL
 from articles import ARTICLES, CAT_NAME
 from factchecks import FACTCHECKS
 import food as F
@@ -57,6 +58,7 @@ pages = {
     "/community/board/post/index.html": D.board_post(),
     "/policy/community.html": D.community_policy(),
     "/videos/index.html": E.videos_page(),
+    "/mall/index.html": MALL.mall_page(),
     "/library/index.html": E.library_page(),
     "/stats/index.html": E.stats_page(),
     "/news/index.html": E.news_page(),
@@ -90,7 +92,7 @@ def prio(p):
     if p.startswith("/policy/"):
         return "0.3", "yearly"
     return "0.6", "monthly"
-DATES = {}
+DATES = {"/mall/index.html": MALL_DATE}
 for a in ARTICLES:
     DATES[f"/info/{a['slug']}.html"] = a.get("date", REVIEW_DATE)
 for f in FACTCHECKS:
@@ -106,6 +108,8 @@ for p in urls:
     sm.append(f"  <url><loc>{SITE}{loc(p)}</loc><lastmod>{DATES.get(p, NEW_DATE)}</lastmod><changefreq>{cf}</changefreq><priority>{pr}</priority></url>")
 sm.append("</urlset>")
 write("/sitemap.xml", "\n".join(sm) + "\n")
+
+write("/mall/products.json", MALL.products_json())
 
 # ---------- rss.xml ----------
 KST = timezone(timedelta(hours=9))
@@ -157,7 +161,7 @@ for cat, q, a in FAQ:
 TOOLPAGES = [("7일 혈압 기록", "/check7/", "혈압 기록장 가정혈압 기록 평균"), ("측정 타이머", "/tools/timer/", "혈압 재는 법 5분 안정 측정"), ("나트륨 계산기", "/tools/sodium/", "나트륨 소금 계산"),
              ("복약 체크", "/tools/meds/", "혈압약 복용 체크"), ("측정 알림 만들기", "/tools/reminder/", "알람 캘린더"), ("진료 준비 리포트", "/report/", "인쇄 PDF 진료"),
              ("인쇄용 혈압 기록지", "/tools/log-sheet/", "기록지 기록표 양식 인쇄"), ("기록 백업·복원", "/tools/backup/", "백업 기기 이동"), ("혈압계 가이드", "/devices/", "혈압계 고르는 법 커프 손목 스마트워치"),
-             ("관리용품 가이드", "/products/", "염도계 약통 커프"), ("진료 준비·병의원 안내", "/clinic/", "병원 내과 만성질환관리"), ("가족과 함께 관리하기", "/family/", "부모님 혈압"),
+             ("관리용품 가이드", "/products/", "염도계 약통 커프"), ("바른혈압몰", "/mall/", "쇼핑 몰 약통 약달력 줄자 만보기 염도계 계량스푼 저염간장 요가매트 아령 밴드 스텝퍼 쿠팡"), ("진료 준비·병의원 안내", "/clinic/", "병원 내과 만성질환관리"), ("가족과 함께 관리하기", "/family/", "부모님 혈압"),
              ("혈압 관리 챌린지", "/community/challenges/", "챌린지 걷기 국물 금주"), ("커뮤니티 질문과 답변", "/community/", "질문 상담 커뮤니티"), ("자유게시판", "/community/board/", "게시판 커뮤니티 후기 경험담 카페"), ("영상으로 배우기", "/videos/", "영상 동영상 유튜브 강의 혈압 재는 법"),
              ("공신력 있는 자료실", "/library/", "자료 진료지침 학회 공공기관 링크 검증 혈압계"), ("숫자로 보는 고혈압", "/stats/", "통계 유병률 인지율 치료율 조절률 환자 수 팩트시트"),
              ("고혈압 소식", "/news/", "뉴스 소식 발표 지침 개정 세계 고혈압의 날"),
