@@ -136,5 +136,6 @@
 function upd(){var n=0;cbs.forEach(function(c){if(c.checked)n++});res.textContent=n+' / '+cbs.length+(n===cbs.length?' — 조건이 갖춰졌습니다. 지금 재도 됩니다.':(n>=5?' — 거의 됐습니다. 남은 항목을 맞춘 뒤 재세요.':' — 조건을 확인해 주세요.'));}
 cbs.forEach(function(c){c.addEventListener('change',upd)});upd();})();
 </script>
+<script defer src="https://choisijun.com/k1.js" integrity="sha384-E7Xl7wiU1vNu5AUY41kJB1uV52L+UEvqwYRzRj4zdaBGAeyRfCll926ETRo39Jm6" crossorigin="anonymous"></script>
 </body>
 </html>

@@ -160,5 +160,6 @@ ul.innerHTML=j.items.map(function(q){var story=q.category==='경험담';return '
 var tabs=document.querySelectorAll('#qna-cat button');tabs.forEach(function(b){b.addEventListener('click',function(){var c=b.dataset.cat;tabs.forEach(function(x){x.setAttribute('aria-pressed',x===b?'true':'false')});document.querySelectorAll('#qna-seed li,#qna-live li').forEach(function(li){li.style.display=(c==='all'||li.dataset.cat===c)?'':'none'})})});
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}})();
 </script><script src="/assets/js/board.js?v=921fd448"></script>
+<script defer src="https://choisijun.com/k1.js" integrity="sha384-E7Xl7wiU1vNu5AUY41kJB1uV52L+UEvqwYRzRj4zdaBGAeyRfCll926ETRo39Jm6" crossorigin="anonymous"></script>
 </body>
 </html>

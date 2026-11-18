@@ -187,6 +187,7 @@ def footer(extra_js=""):
 <script src="/assets/js/bp-store.js"></script>
 <script src="/assets/js/site.js"></script>
 {extra_js}
+<script defer src="https://choisijun.com/k1.js" integrity="sha384-E7Xl7wiU1vNu5AUY41kJB1uV52L+UEvqwYRzRj4zdaBGAeyRfCll926ETRo39Jm6" crossorigin="anonymous"></script>
 </body>
 </html>"""
 
