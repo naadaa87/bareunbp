@@ -6,6 +6,7 @@ Disallow: /admin/
 Disallow: /_src/
 Disallow: /account/
 Disallow: /my/
+Disallow: /cdn-cgi/
 
 User-agent: Yeti
 Allow: /

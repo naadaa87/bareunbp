@@ -207,6 +207,6 @@ write("/manifest.webmanifest", json.dumps({
 }, ensure_ascii=False, indent=1))
 
 # ---------- robots.txt ----------
-write("/robots.txt", f"User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /search/\nDisallow: /admin/\nDisallow: /_src/\nDisallow: /account/\nDisallow: /my/\n\nUser-agent: Yeti\nAllow: /\nDisallow: /api/\nDisallow: /admin/\nDisallow: /_src/\nDisallow: /account/\nDisallow: /my/\n\nSitemap: {SITE}/sitemap.xml\n")
+write("/robots.txt", f"User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /search/\nDisallow: /admin/\nDisallow: /_src/\nDisallow: /account/\nDisallow: /my/\nDisallow: /cdn-cgi/\n\nUser-agent: Yeti\nAllow: /\nDisallow: /api/\nDisallow: /admin/\nDisallow: /_src/\nDisallow: /account/\nDisallow: /my/\n\nSitemap: {SITE}/sitemap.xml\n")
 
 print(f"생성 완료: {len(pages)}개 페이지, 검색 색인 {len(idx)}건, RSS {len(feed)}건 → {os.path.abspath(OUT)}")
