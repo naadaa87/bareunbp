@@ -6,6 +6,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 import content  # noqa: F401  (기존 글에 2차 확충분 병합)
 from base import write, pretty, SITE, BRAND, REVIEW_DATE, NEW_DATE, MALL_DATE, OUT
 import mall as MALL
+import recipe_sd as RSD
 from articles import ARTICLES, CAT_NAME
 from factchecks import FACTCHECKS
 import food as F
@@ -151,7 +152,7 @@ for fp in F.FOOD_PAGES:
 for f in FACTCHECKS:
     idx.append({"t": "팩트체크: " + f["claim"], "s": f["summary"], "k": "팩트체크", "c": "팩트체크", "u": f"/factcheck/{f['slug']}.html", "b": text(f["body"])[:600]})
 for r in F.RECIPES:
-    idx.append({"t": r["name"], "s": r["desc"], "k": "레시피 저염 " + " ".join(r["ingredients"]), "c": "레시피", "u": f"/food/recipes/{r['slug']}.html", "b": " ".join(r["steps"])})
+    idx.append({"t": r["name"], "s": r["desc"], "k": "레시피 저염 " + " ".join(r["ingredients"]), "c": "레시피", "u": f"/food/recipes/{r['slug']}.html", "b": RSD.step_text(r)})
 for n, c, s, mg in F.SODIUM_DISHES:
     idx.append({"t": f"{n} 나트륨 {mg:,}mg", "s": f"1인분({s}) 기준 나트륨 약 {mg:,}mg — 외식 나트륨 함량표", "k": f"{n} 나트륨 {c}", "c": "외식 나트륨표", "u": "/food/sodium-table.html", "b": ""})
 for t, alt, d, l in GLOSSARY:

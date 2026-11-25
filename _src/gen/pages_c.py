@@ -8,6 +8,7 @@ from articles import KSH2026, KDCA, WHO_NA, MFDS_HF
 from articles2 import KSH2018_LIFE, LIFE_TABLE
 import food as F
 import mall as MALL
+import recipe_sd as RSD
 from glossary import GLOSSARY
 from faq import FAQ
 
@@ -399,21 +400,19 @@ def food_index():
 def recipe_page(r):
     path = f"/food/recipes/{r['slug']}.html"
     ing = "".join(f"<li>{i}</li>" for i in r["ingredients"])
-    steps = "".join(f"<li><span>{s}</span></li>" for s in r["steps"])
+    steps = RSD.steps_html(r)          # 단계마다 제목과 #step-N 위치를 붙인다 (구조화 데이터의 name·url과 같은 값)
     tips = "".join(f"<li>{t}</li>" for t in r["tips"])
-    mins = "".join(ch for ch in r["time"].split("분")[0] if ch.isdigit()) or "20"
-    ld = {"@context": "https://schema.org", "@type": "Recipe", "name": r["name"], "description": r["desc"], "recipeYield": f"{r['serves']}인분",
-          "totalTime": f"PT{mins}M", "recipeIngredient": r["ingredients"], "recipeInstructions": [{"@type": "HowToStep", "text": s} for s in r["steps"]],
-          "recipeCategory": "저염식", "recipeCuisine": "한식", "keywords": "저염, 고혈압 식단, " + r["name"], "author": {"@type": "Organization", "name": BRAND},
-          "image": SITE + "/assets/img/photo-flatlay.jpg", "datePublished": r.get("date", REVIEW_DATE)}
+    ld = RSD.recipe_ld(r)
+    pic = RSD.photo(r)
+    pic = f'<figure class="recipe-photo"><img src="{pic}" alt="완성된 {r["name"]}" width="1200" height="900"></figure>' if pic else ""
     others = "".join(f'<li><a href="/food/recipes/{x["slug"]}.html"><b>{x["name"]}</b><span>{x["desc"]}</span></a></li>' for x in F.RECIPES if x["slug"] != r["slug"])
     body = page_head(r["name"], r["desc"], [("/", "홈"), ("/food/", "음식·식단"), ("/food/recipes/", "저염 레시피"), (None, r["name"])], path) + f"""
 <section class="section section--tight">
 <div class="wrap">
 <div class="recipe">
 <div class="recipe-meta"><span class="badge">조리 {r["time"]}</span><span class="badge">{r["serves"]}인분</span><span class="badge">저염 한식</span><button class="btn btn--ghost btn--sm no-print" onclick="window.bpTrack&amp;&amp;bpTrack('recipe_print');window.print()">레시피 인쇄</button></div>
-<div class="recipe-grid">
-<div class="card"><h2>재료</h2><ul class="checklist">{ing}</ul></div>
+{pic}<div class="recipe-grid">
+<div><div class="card"><h2>재료</h2><ul class="checklist">{ing}</ul></div>{RSD.nutrition_html(r)}</div>
 <div><h2>만드는 법</h2><ol class="steps">{steps}</ol>
 <h2>덜 짜게 먹는 요령</h2><ul>{tips}</ul></div>
 </div>

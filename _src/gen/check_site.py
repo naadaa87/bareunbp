@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
-"""생성된 사이트 점검 — 깨진 내부 링크·앵커, 필수 메타, 금지 문구
+"""생성된 사이트 점검 — 깨진 내부 링크·앵커, 필수 메타, 레시피 구조화 데이터
 
 사용: python3 _src/gen/check_site.py   (저장소 맨 위 폴더 기준으로 동작)
 문제가 있으면 종료 코드 1
 """
 import os, re, glob, sys, html, json
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import recipe_sd  # noqa: E402
 
 ROOT = os.environ.get("BP_OUT") or os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 
@@ -59,6 +62,23 @@ def main():
                 a = u.split("#", 1)[1]
                 if a and t.endswith(".html") and a not in page_ids(t):
                     anchors.append((f, u))
+    # 레시피 구조화 데이터 (Google Search Console의 HowToStep name·url 권고 포함)
+    rec_err, rec_warn, n_rec = [], {}, 0
+    for f in sorted(glob.glob("food/recipes/*.html")):
+        if f.endswith("index.html"):
+            continue
+        s = open(f, encoding="utf-8").read()
+        c = re.search(r'<link rel="canonical" href="([^"]+)"', s)
+        e, w = recipe_sd.check_page(s, c.group(1) if c else "")
+        n_rec += 1
+        rec_err += [(f, x) for x in e]
+        for x in w:
+            rec_warn.setdefault(x, []).append(os.path.basename(f)[:-5])
+    meta += [(f, "레시피: " + x) for f, x in rec_err]
+    print(f"레시피 {n_rec}개 구조화 데이터 확인 — 오류 {len(rec_err)}")
+    for x, fs in rec_warn.items():
+        print(f"  참고: {x} ({len(fs)}개)")
+
     # 사이트맵·RSS가 올바른 XML 모양인지 간단히
     for x in ("sitemap.xml", "rss.xml"):
         s = open(x, encoding="utf-8").read()

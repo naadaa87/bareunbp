@@ -274,11 +274,19 @@ def check(path, site=None, existing=None):
             errs.append("재료는 4개 이상")
         if len(it.get("steps") or []) < 3:
             errs.append("조리 순서는 3단계 이상")
+        # 구조화 데이터(HowToStep name·url)를 위해 단계마다 제목이 있어야 한다 — recipe_sd.py 설명 참고
+        import recipe_sd
+        errs += ["조리 단계: " + e for e in recipe_sd.step_problems(dict(it, slug=slug))]
+        for k in ("video", "aggregateRating", "rating"):
+            if it.get(k):
+                errs.append(f"{k}는 넣지 않습니다(실제 영상·평점이 없음)")
+        if it.get("nutrition") and not it["nutrition"].get("source"):
+            errs.append("nutrition을 넣으려면 계산 근거(source)를 함께 적어야 합니다")
         if len(it.get("tips") or []) < 2:
             errs.append("팁은 2개 이상")
         if not re.search(r"\d+\s*분", str(it.get("time", ""))):
             errs.append("time은 '20분'처럼 분 단위")
-        html = " ".join([it.get("desc", "")] + list(it.get("ingredients") or []) + list(it.get("steps") or []) + list(it.get("tips") or []) + [it.get("intro", "")])
+        html = " ".join([it.get("desc", "")] + list(it.get("ingredients") or []) + [x if isinstance(x, str) else " ".join(map(str, x.values() if isinstance(x, dict) else x)) for x in (it.get("steps") or [])] + list(it.get("tips") or []) + [it.get("intro", "")])
 
     # 제목·요약 길이 (검색 결과에 잘리지 않게)
     title = it.get("title") or it.get("claim") or it.get("name") or ""

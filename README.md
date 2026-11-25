@@ -216,4 +216,19 @@ https://register.search.daum.net 에서 사이트 URL을 등록합니다.
 
 페이지는 `_src/gen/` 생성기로 만들어집니다. HTML 파일을 GitHub에서 직접 고칠 수도 있지만, 다음에 생성기로 다시 만들면 덮어써지므로 글 수정은 생성기에 반영하는 것이 원칙입니다(요청 주시면 반영해 드립니다). 고친 뒤에는 관리자 콘솔 **정정 이력**에 기록하세요.
 
+### 레시피 구조화 데이터 (Google 레시피 검색)
+
+레시피 페이지의 구조화 데이터는 `_src/gen/recipe_sd.py` 한곳에서 만들고 검사합니다.
+
+| 구분 | 속성 | 바른혈압 처리 |
+|---|---|---|
+| 필수 | name, image | 항상 넣음. 완성 요리 사진이 없으면 공용 사진을 씀 |
+| 권장 | description, author, datePublished, recipeYield, totalTime, recipeIngredient, recipeCategory, recipeCuisine, keywords | 항상 넣음 |
+| 권장 | recipeInstructions(HowToStep의 text·name·url) | 단계마다 제목(name)과 페이지 안 위치 `#step-N`(url)을 넣음 |
+| 권장(실제 값만) | nutrition, video, aggregateRating, 단계 사진 | 확인된 값이 없으면 넣지 않음. Search Console에 ‘심각하지 않은 문제’로 남아도 검색 노출에는 지장 없음 |
+
+- 새 레시피의 조리 단계는 `("단계 제목", "설명")` 형식으로 씁니다. 제목이 없으면 매일 발행 점검과 사이트 생성이 멈춥니다.
+- **완성 요리 사진 넣기**: 직접 찍은 사진을 GitHub 웹에서 `assets/img/recipes/<레시피 주소>.jpg`로 올리면(예: `assets/img/recipes/bibimbap-light.jpg`) 다음 빌드부터 그 레시피 화면 위쪽과 구조화 데이터 image에 자동으로 쓰입니다. 가로 1200px 이상을 권장합니다.
+- 점검: `check_site.py`가 레시피마다 필수·권장 속성, 단계 제목·위치, 화면 표시 여부를 확인합니다.
+
 사이트 주소는 확장자 없는 형태(`/info/reading-numbers`)가 표준입니다. Cloudflare Pages가 `.html` 주소를 자동으로 이 형태로 옮기기 때문에, canonical·sitemap·내부 링크도 같은 형태로 맞춰 두었습니다.

@@ -72,6 +72,8 @@ python3 daily.py next --date <내일 날짜>
   - `food` 음식·식단: title, summary, keywords, kind, certainty, target, body, faq
   - `factcheck` 팩트체크: claim, verdict(ok·partial·insuff·contra·doctor), summary, conditions, body, srcs
   - `recipe` 레시피: name, time, serves, desc, ingredients, steps, tips
+    - steps는 `("단계 제목", "설명")` 쌍으로 쓴다. 제목은 그 단계에서 하는 일을 2~20자로(예: `"육수 내기"`), 번호나 ‘1단계’는 넣지 않는다. 제목이 없으면 점검과 빌드가 멈춘다(Google 레시피 구조화 데이터의 HowToStep name·url).
+    - 영양성분·영상·평점은 넣지 않는다. 확인된 값이 없는데 채우면 안 된다.
 - 선택: 용어사전에 넣을 `GLOSSARY = [(용어, 영문, 설명, 링크)]`, 자주 묻는 질문 `FAQ = [(분류, 질문, 답)]`, 고혈압 소식 `NEWS = [(날짜, 제목, 내용, 출처, [(링크, 이름)])]`
 
 ### 2-3. 검색에 잘 걸리게

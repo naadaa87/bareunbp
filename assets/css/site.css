@@ -851,3 +851,10 @@ input[type=file] { max-width: 100%; }
   .user-link { padding: 0 6px; }
   .brand img { height: 34px; }
 }
+
+/* 레시피 — 조리 단계 위치(#step-N)와 완성 사진 */
+.steps li[id] { scroll-margin-top: 96px; border-radius: 12px; }
+.steps li:target { background: var(--sky, #eef5ff); box-shadow: 0 0 0 8px var(--sky, #eef5ff); }
+.steps li > img { grid-column: 2; width: 100%; max-width: 420px; border-radius: 10px; }
+.recipe-photo { margin: 0 0 24px; }
+.recipe-photo img { width: 100%; max-height: 460px; object-fit: cover; border-radius: 16px; display: block; }
