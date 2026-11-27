@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>7일 혈압 기록 — 무료 가정혈압 기록장 | 바른혈압</title>
-<meta name="description" content="회원가입 없이 브라우저에만 저장되는 7일 가정혈압 기록 도구. 아침·저녁 기록, 7일 평균, 추이 그래프, 진료 준비 리포트 연결.">
+<meta name="description" content="회원가입 없이 브라우저에만 저장되는 7일 가정혈압 기록 도구. 아침·저녁 기록, 7일 평균, 추이 그래프, 진료 준비 리포트 연결. 언제·몇 번 재는지도 안내합니다.">
 <meta name="keywords" content="혈압 기록, 혈압 기록장, 혈압 기록 앱, 가정혈압 기록, 혈압 평균 계산">
 <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
 <meta name="naver-site-verification" content="c319690d7b48cb8034329f4bbce2c30dcc63eab2">
@@ -14,15 +14,16 @@
 <meta property="og:locale" content="ko_KR">
 <meta property="og:site_name" content="바른혈압">
 <meta property="og:title" content="7일 혈압 기록 — 무료 가정혈압 기록장 | 바른혈압">
-<meta property="og:description" content="회원가입 없이 브라우저에만 저장되는 7일 가정혈압 기록 도구. 아침·저녁 기록, 7일 평균, 추이 그래프, 진료 준비 리포트 연결.">
-<meta property="og:image" content="https://bareunbp.com/assets/img/og.jpg">
+<meta property="og:description" content="회원가입 없이 브라우저에만 저장되는 7일 가정혈압 기록 도구. 아침·저녁 기록, 7일 평균, 추이 그래프, 진료 준비 리포트 연결. 언제·몇 번 재는지도 안내합니다.">
+<meta property="og:image" content="https://bareunbp.com/assets/og/check7.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="7일 혈압 기록 — 무료 가정혈압 기록장">
 <meta property="og:url" content="https://bareunbp.com/check7/">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="7일 혈압 기록 — 무료 가정혈압 기록장 | 바른혈압">
-<meta name="twitter:description" content="회원가입 없이 브라우저에만 저장되는 7일 가정혈압 기록 도구. 아침·저녁 기록, 7일 평균, 추이 그래프, 진료 준비 리포트 연결.">
-<meta name="twitter:image" content="https://bareunbp.com/assets/img/og.jpg">
+<meta name="twitter:description" content="회원가입 없이 브라우저에만 저장되는 7일 가정혈압 기록 도구. 아침·저녁 기록, 7일 평균, 추이 그래프, 진료 준비 리포트 연결. 언제·몇 번 재는지도 안내합니다.">
+<meta name="twitter:image" content="https://bareunbp.com/assets/og/check7.png">
 <meta name="theme-color" content="#0e2a47">
 <meta name="format-detection" content="telephone=no">
 <link rel="icon" type="image/png" href="/assets/img/favicon.png">
@@ -30,8 +31,8 @@
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
-<link rel="stylesheet" href="/assets/css/site.css?v=cadaf367">
-
+<link rel="stylesheet" href="/assets/css/site.css?v=4c5369d1">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "가정혈압은 언제 재야 하나요?", "acceptedAnswer": {"@type": "Answer", "text": "아침에는 일어난 뒤 1시간 안에 소변을 보고 식사와 혈압약 전에, 저녁에는 잠자리에 들기 전에 잽니다."}}, {"@type": "Question", "name": "7일 평균이 얼마면 고혈압인가요?", "acceptedAnswer": {"@type": "Answer", "text": "가정혈압 평균이 135/85 mmHg 이상이면 고혈압에 해당합니다. 다만 본인의 목표와 해석은 의료진과 확인해야 하며, 이 도구는 수치를 판정하지 않습니다."}}, {"@type": "Question", "name": "기록은 어디에 저장되나요?", "acceptedAnswer": {"@type": "Answer", "text": "이 브라우저에만 저장되고 서버로 보내지 않습니다. 기기를 바꾸거나 보관하려면 백업 파일로 저장하세요."}}]}</script>
 </head>
 <body>
 <div class="notice-bar"><div class="wrap"><span>글마다 근거와 최종 검토일을 밝히고, 의료진 감수가 끝난 글에는 감수자를 표기합니다. <a href="/about/#review">운영 원칙 보기</a></span><span class="no-print">이 사이트는 의료기관이 아닙니다</span></div></div>
@@ -101,7 +102,18 @@
 </div>
 </div>
 </section>
-
+<section class="section section--tight tool-guide"><div class="wrap"><article class="article">
+<h2>왜 7일인가</h2>
+<p>혈압은 하루에도 여러 번 바뀌고, 진료실에서는 긴장해서 높게 나오기도 합니다. 그래서 대한고혈압학회 진료지침은 진료 전 적어도 5일, 가능하면 7일 동안 집에서 아침·저녁으로 재고 그 평균을 보도록 권합니다. 이 기록장은 그 7일을 채우도록 돕는 도구입니다.</p>
+<h2>기록하는 법</h2>
+<ol>
+<li>아침에는 일어난 뒤 1시간 안에, 소변을 본 뒤, 식사와 혈압약 전에 잽니다. 저녁에는 잠들기 전에 잽니다.</li>
+<li>각 시점마다 1~2분 간격으로 두 번 재서 모두 입력합니다. 처음이라면 <a href="/tools/timer/">측정 타이머</a>가 순서를 안내합니다.</li>
+<li>‘측정 조건’을 체크하고, 음주·수면·증상은 메모로 남깁니다.</li>
+<li>7일을 채우면 <a href="/report/">진료 준비 리포트</a>로 A4 한 장에 정리해 진료 때 보여 줍니다.</li>
+</ol>
+<p>기록은 회원가입 없이 이 브라우저에만 저장됩니다. 종이가 편하다면 <a href="/tools/log-sheet/">인쇄용 혈압 기록지</a>를 쓰세요.</p>
+<h2 id="faq">자주 묻는 질문</h2><div class="faq-list"><details class="faq-item"><summary>가정혈압은 언제 재야 하나요?</summary><div>아침에는 일어난 뒤 1시간 안에 소변을 보고 식사와 혈압약 전에, 저녁에는 잠자리에 들기 전에 잽니다.</div></details><details class="faq-item"><summary>7일 평균이 얼마면 고혈압인가요?</summary><div>가정혈압 평균이 135/85 mmHg 이상이면 고혈압에 해당합니다. 다만 본인의 목표와 해석은 의료진과 확인해야 하며, 이 도구는 수치를 판정하지 않습니다.</div></details><details class="faq-item"><summary>기록은 어디에 저장되나요?</summary><div>이 브라우저에만 저장되고 서버로 보내지 않습니다. 기기를 바꾸거나 보관하려면 백업 파일로 저장하세요.</div></details></div></article></div></section>
 </main>
 <footer class="site-footer">
 <div class="wrap">

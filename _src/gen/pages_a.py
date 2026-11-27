@@ -2,11 +2,14 @@
 from base import *
 from articles import ARTICLES, CATEGORIES, CAT_NAME
 from factchecks import FACTCHECKS, VERDICTS
+import seo as SEO
 
 # ============================================================
 # 홈
 # ============================================================
 def home():
+    import seo_content as _SC
+    SC_POP = _SC.popular_html()
     pillars = [
         ("cuff", "바르게 재기", "시간, 자세, 커프 위치. 잘못 잰 숫자는 아무 의미가 없습니다. 재기 전 1분 체크리스트.", "/measure/"),
         ("calendar", "7일 혈압 기록", "회원가입 없이, 이 기기에만 저장됩니다. 아침·저녁 기록과 7일 평균을 봅니다.", "/check7/"),
@@ -96,6 +99,7 @@ def home():
 </div>
 </section>
 
+{SC_POP}
 <section class="section section--sky">
 <div class="wrap">
 <div class="grid grid--2" style="gap:40px;align-items:start">
@@ -178,9 +182,15 @@ def home():
 </section>
 """
     ld = [
-        {"@context": "https://schema.org", "@type": "Organization", "name": BRAND, "url": SITE, "logo": SITE + "/assets/img/logo@2x.png", "email": "spaceblank0100@gmail.com", "parentOrganization": {"@type": "Organization", "name": "주식회사 블랭크"}},
+        {"@context": "https://schema.org", "@type": "Organization", "@id": SITE + "/#organization", "name": BRAND,
+         "alternateName": ["bareunbp", "바른혈압 bareunbp.com"], "url": SITE, "logo": SITE + "/assets/img/logo@2x.png",
+         "description": "대한고혈압학회 진료지침과 공공기관 자료를 근거로 고혈압·혈압 관리 정보와 무료 가정혈압 기록 도구를 제공하는 한국어 사이트",
+         "slogan": TAGLINE, "areaServed": {"@type": "Country", "name": "대한민국"},
+         "knowsAbout": ["고혈압", "가정혈압 측정", "혈압 정상수치", "저염 식단", "나트륨", "혈압약", "백의고혈압", "DASH 식단"],
+         "email": "spaceblank0100@gmail.com", "parentOrganization": {"@type": "Organization", "name": "주식회사 블랭크"}},
     ]
-    ld.append({"@context": "https://schema.org", "@type": "WebSite", "name": BRAND, "url": SITE, "potentialAction": {"@type": "SearchAction", "target": {"@type": "EntryPoint", "urlTemplate": SITE + "/search/?q={search_term_string}"}, "query-input": "required name=search_term_string"}})
+    ld.append({"@context": "https://schema.org", "@type": "WebSite", "@id": SITE + "/#website", "name": BRAND, "alternateName": "bareunbp", "url": SITE,
+               "inLanguage": "ko", "publisher": {"@id": SITE + "/#organization"}, "potentialAction": {"@type": "SearchAction", "target": {"@type": "EntryPoint", "urlTemplate": SITE + "/search/?q={search_term_string}"}, "query-input": "required name=search_term_string"}})
     return page(BRAND, "혈압 정상수치, 혈압 재는 법, 혈압에 좋은 음식과 저염 식단, 7일 가정혈압 기록과 진료 준비 리포트까지. 진료지침 근거로 고혈압 관리를 돕는 무료 플랫폼.", "/", body, jsonld=ld,
                 keywords=["고혈압", "혈압", "혈압 정상수치", "혈압 재는 법", "혈압에 좋은 음식", "혈압 기록", "가정혈압", "저염식", "고혈압 관리"])
 
@@ -329,7 +339,9 @@ def check7():
 </div>
 </section>
 """
-    return page("7일 혈압 기록 — 무료 가정혈압 기록장", "회원가입 없이 브라우저에만 저장되는 7일 가정혈압 기록 도구. 아침·저녁 기록, 7일 평균, 추이 그래프, 진료 준비 리포트 연결.", "/check7/", body, extra_js='<script src="/assets/js/check7.js"></script>', keywords=["혈압 기록", "혈압 기록장", "혈압 기록 앱", "가정혈압 기록", "혈압 평균 계산"])
+    import seo_content as SC
+    body += SC.guide_html("/check7/")
+    return page("7일 혈압 기록 — 무료 가정혈압 기록장", "회원가입 없이 브라우저에만 저장되는 7일 가정혈압 기록 도구. 아침·저녁 기록, 7일 평균, 추이 그래프, 진료 준비 리포트 연결. 언제·몇 번 재는지도 안내합니다.", "/check7/", body, jsonld=SC.guide_ld("/check7/"), extra_js='<script src="/assets/js/check7.js"></script>', keywords=["혈압 기록", "혈압 기록장", "혈압 기록 앱", "가정혈압 기록", "혈압 평균 계산"])
 
 
 # ============================================================
@@ -353,7 +365,7 @@ def report():
 </div>
 
 <div class="report-sheet" id="sheet">
-<header><div><h1>가정혈압 기록 요약</h1><div class="meta" id="r-period"></div></div><div style="text-align:right"><img src="/assets/img/logo.png" alt="바른혈압"><div class="meta" id="r-made"></div></div></header>
+<header><div><p class="sheet-title">가정혈압 기록 요약</p><div class="meta" id="r-period"></div></div><div style="text-align:right"><img src="/assets/img/logo.png" alt="바른혈압"><div class="meta" id="r-made"></div></div></header>
 <div class="rs-grid" id="r-stats"></div>
 <h2>측정 기록</h2>
 <table><thead><tr><th>일시</th><th>구분</th><th>수축기</th><th>이완기</th><th>맥박</th><th>측정 조건</th><th>메모</th></tr></thead><tbody id="r-rows"></tbody></table>
@@ -461,7 +473,7 @@ def factcheck_index():
 def factcheck_page(f):
     n, c, d = VERDICTS[f["verdict"]]
     cond = f'<p style="font-size:.92rem;color:var(--muted)"><b style="color:var(--navy)">조건</b> — {f["conditions"]}</p>' if f.get("conditions") else ""
-    ld = {"@context": "https://schema.org", "@type": "ClaimReview", "url": f"{SITE}/factcheck/{f['slug']}.html", "claimReviewed": f["claim"], "datePublished": f.get("date", REVIEW_DATE), "author": {"@type": "Organization", "name": BRAND}, "reviewRating": {"@type": "Rating", "alternateName": n, "bestRating": 5, "worstRating": 1, "ratingValue": {"ok": 5, "partial": 3, "insuff": 2, "contra": 1, "doctor": 3}[f["verdict"]]}, "itemReviewed": {"@type": "Claim", "text": f["claim"]}}
+    ld = {"@context": "https://schema.org", "@type": "ClaimReview", "url": f"{SITE}/factcheck/{f['slug']}", "claimReviewed": f["claim"], "datePublished": f.get("date", REVIEW_DATE), "author": {"@type": "Organization", "name": BRAND}, "reviewRating": {"@type": "Rating", "alternateName": n, "bestRating": 5, "worstRating": 1, "ratingValue": {"ok": 5, "partial": 3, "insuff": 2, "contra": 1, "doctor": 3}[f["verdict"]]}, "itemReviewed": {"@type": "Claim", "text": f["claim"]}, "dateModified": item_dates(f)[1]}
     body = page_head(f'“{f["claim"]}”', f["summary"], [("/", "홈"), ("/factcheck/", "팩트체크"), (None, "판정")], f"/factcheck/{f['slug']}.html") + f"""
 <section class="section section--tight">
 <div class="wrap">
@@ -470,12 +482,19 @@ def factcheck_page(f):
 <div class="verdict-hero"><span class="verdict {c}">{n}</span><p>{d}</p></div>
 {cond}
 {evidence("진료지침 · 공공기관", "높음" if f["verdict"] in ("ok", "contra") else "중간", "일반 성인", date=f.get("date", REVIEW_DATE))}
-{f["body"]}
+{SEO.link_glossary(f["body"], f"/factcheck/{f['slug']}.html")}
 <h2>출처</h2>
 {sources(f["srcs"])}
 {article_cta("궁금한 이야기를 들었다면, 먼저 내 혈압부터 정확히", "통설보다 내 숫자가 먼저입니다. 7일 기록으로 시작하세요.")}
 </article>
+{SEO.related_html(f"/factcheck/{f['slug']}.html")}
 </div>
 </section>
 """
-    return page(f'팩트체크: {f["claim"]}', f["summary"], f"/factcheck/{f['slug']}.html", body, jsonld=ld, og_type="article", keywords=[f["claim"], "고혈압 팩트체크", "혈압 상식"])
+    import og
+    path = f"/factcheck/{f['slug']}.html"
+    q = f["claim"].rstrip(".") + "?"
+    pub, mod = item_dates(f)
+    img = og.ensure(OUT, path, q, label=f"팩트체크 · {n}", sub=d)
+    return page(f"{q} — 팩트체크", f["summary"], path, body, jsonld=ld, og_type="article", og_image=img,
+                keywords=f.get("keywords") or [f["claim"], "고혈압 팩트체크", "혈압 상식"], published=pub, modified=mod)

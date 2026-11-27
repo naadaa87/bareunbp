@@ -72,6 +72,16 @@ _order = {k: i for i, (k, _) in enumerate(articles.CATEGORIES)}
 articles.ARTICLES.sort(key=lambda a: _order.get(a["cat"], 99))
 
 
+# 2026-11-27 검색 보강 — 자주 묻는 질문이 없던 글에 질문·답 추가 (seo_content.py)
+import seo_content as _SC
+for _a in articles.ARTICLES:
+    if _a["slug"] in _SC.ARTICLE_FAQ and not _a.get("faq"):
+        _a["faq"] = _SC.ARTICLE_FAQ[_a["slug"]]
+        _a["updated"] = _SC.UPDATED
+    if _a["slug"] in _SC.INLINE_FAQ:
+        _a["faq_inline"] = _SC.INLINE_FAQ[_a["slug"]]
+
+
 def related(a, n=4):
     """같은 카테고리·태그를 공유하는 글을 점수순으로"""
     tags = set(a.get("tags", []))

@@ -93,15 +93,25 @@ def prio(p):
     if p.startswith("/policy/"):
         return "0.3", "yearly"
     return "0.6", "monthly"
+# lastmod — 글은 마지막으로 내용을 고친 날, 목록 페이지는 그 안의 가장 최근 글 날짜
+from base import item_dates
+import seo_content as SC
 DATES = {"/mall/index.html": MALL_DATE}
 for a in ARTICLES:
-    DATES[f"/info/{a['slug']}.html"] = a.get("date", REVIEW_DATE)
+    DATES[f"/info/{a['slug']}.html"] = item_dates(a)[1]
 for f in FACTCHECKS:
-    DATES[f"/factcheck/{f['slug']}.html"] = f.get("date", REVIEW_DATE)
+    DATES[f"/factcheck/{f['slug']}.html"] = item_dates(f)[1]
 for fp in F.FOOD_PAGES:
-    DATES[f"/food/{fp['slug']}.html"] = fp.get("date", REVIEW_DATE)
+    DATES[f"/food/{fp['slug']}.html"] = item_dates(fp)[1]
 for r in F.RECIPES:
-    DATES[f"/food/recipes/{r['slug']}.html"] = r.get("date", REVIEW_DATE)
+    DATES[f"/food/recipes/{r['slug']}.html"] = item_dates(r)[1]
+for p in SC.TOOL_GUIDES:
+    DATES[p + "index.html"] = SC.UPDATED
+_hub = lambda pre: max([d for k, d in DATES.items() if k.startswith(pre)] or [NEW_DATE])
+for hub, pre in (("/info/index.html", "/info/"), ("/factcheck/index.html", "/factcheck/"), ("/food/recipes/index.html", "/food/recipes/"),
+                 ("/food/index.html", "/food/"), ("/tools/index.html", "/tools/")):
+    DATES[hub] = max(_hub(pre), NEW_DATE)
+DATES["/index.html"] = max(DATES.values())
 urls = [p for p in pages if p not in NOINDEX]
 sm = ['<?xml version="1.0" encoding="UTF-8"?>', '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
 for p in urls:
@@ -208,6 +218,10 @@ write("/manifest.webmanifest", json.dumps({
 }, ensure_ascii=False, indent=1))
 
 # ---------- robots.txt ----------
-write("/robots.txt", f"User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /search/\nDisallow: /admin/\nDisallow: /_src/\nDisallow: /account/\nDisallow: /my/\nDisallow: /cdn-cgi/\n\nUser-agent: Yeti\nAllow: /\nDisallow: /api/\nDisallow: /admin/\nDisallow: /_src/\nDisallow: /account/\nDisallow: /my/\n\nSitemap: {SITE}/sitemap.xml\n")
+# ---------- AI 검색 안내 (llms.txt) ----------
+import seo as SEO
+write("/llms.txt", SEO.llms_txt())
+write("/llms-full.txt", SEO.llms_full_txt())
+write("/robots.txt", f"# AI 검색 안내: {SITE}/llms.txt\nUser-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /search/\nDisallow: /admin/\nDisallow: /_src/\nDisallow: /account/\nDisallow: /my/\nDisallow: /cdn-cgi/\n\nUser-agent: Yeti\nAllow: /\nDisallow: /api/\nDisallow: /admin/\nDisallow: /_src/\nDisallow: /account/\nDisallow: /my/\n\nSitemap: {SITE}/sitemap.xml\nSitemap: {SITE}/rss.xml\n")
 
 print(f"생성 완료: {len(pages)}개 페이지, 검색 색인 {len(idx)}건, RSS {len(feed)}건 → {os.path.abspath(OUT)}")

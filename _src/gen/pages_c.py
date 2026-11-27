@@ -9,6 +9,8 @@ from articles2 import KSH2018_LIFE, LIFE_TABLE
 import food as F
 import mall as MALL
 import recipe_sd as RSD
+import seo as SEO
+import seo_content as SC
 from glossary import GLOSSARY
 from faq import FAQ
 
@@ -36,13 +38,16 @@ def related_block(items, base="/info/", title="함께 읽으면 좋은 글"):
     return f'<aside class="related no-print"><h2>{title}</h2><ul>{lis}</ul></aside>'
 
 
-def article_ld(title, desc, path, kw=None, date=None):
-    date = date or REVIEW_DATE
+def article_ld(title, desc, path, kw=None, date=None, updated=None, about=None):
+    import og
+    pub, mod = item_dates({"date": date or REVIEW_DATE, "updated": updated})
+    url = SITE + pretty(path)
     return {"@context": "https://schema.org", "@type": ["Article", "MedicalWebPage"], "headline": title[:110], "description": desc,
-            "datePublished": FIRST_PUBLISHED if date == REVIEW_DATE else date, "dateModified": date, "inLanguage": "ko",
+            "datePublished": pub, "dateModified": mod, "inLanguage": "ko", "url": url,
             "author": {"@type": "Organization", "name": BRAND + " 편집팀", "url": SITE + "/about/"}, "publisher": PUBLISHER,
-            "mainEntityOfPage": SITE + path, "about": MEDCOND, "keywords": ", ".join(kw or []),
-            "image": SITE + "/assets/img/og.jpg", "lastReviewed": date}
+            "mainEntityOfPage": {"@type": "WebPage", "@id": url}, "about": about or MEDCOND, "keywords": ", ".join(kw or []),
+            "image": [SITE + og.file_for(path)], "lastReviewed": mod,
+            "audience": {"@type": "PeopleAudience", "audienceType": "고혈압이 있거나 혈압 관리가 필요한 성인과 가족"}}
 
 
 # ============================================================
@@ -55,9 +60,10 @@ def info_article(a):
     for m in re.finditer(r"<h2[^>]*>(.*?)</h2>", a["body"]):
         toc_items.append(re.sub(r"<[^>]+>", "", m.group(1)))
     date = a.get("date", REVIEW_DATE)
-    ld = [article_ld(a["title"], a["summary"], path, a.get("keywords"), date)]
-    if a.get("faq"):
-        ld.append(faq_ld(a["faq"]))
+    pub, mod = item_dates(a)
+    ld = [article_ld(a["title"], a["summary"], path, a.get("keywords"), date, a.get("updated"))]
+    if a.get("faq") or a.get("faq_inline"):
+        ld.append(faq_ld(a.get("faq") or a["faq_inline"]))
     body = page_head(a["title"], a["summary"], [("/", "홈"), ("/info/", "건강정보"), (f"/info/#{a['cat']}", ART.CAT_NAME[a["cat"]]), (None, "본문")], path) + f"""
 <section class="section section--tight">
 <div class="wrap">
@@ -65,7 +71,7 @@ def info_article(a):
 <article class="article">
 <div class="article-meta"><span>작성 바른혈압 편집팀</span><span>{review_badge()}</span><span>최종 검토 <time datetime="{date}">{date}</time></span></div>
 {evidence(a["kind"], a["certainty"], a["target"], date=date)}
-{a["body"]}
+{SEO.link_glossary(a["body"], path)}
 {faq_block(a.get("faq"))}
 {MALL.related_box(path, a["title"] + " " + " ".join(a.get("keywords") or []))}
 {article_cta()}
@@ -74,13 +80,14 @@ def info_article(a):
 <aside class="article-side no-print">
 <div class="side-box"><b>이 글의 순서</b><ol>{"".join(f"<li>{t}</li>" for t in toc_items[:10])}</ol></div>
 <div class="side-box"><b>바로 쓰는 도구</b><ul><li><a href="/check7/">7일 혈압 기록</a></li><li><a href="/tools/timer/">측정 타이머</a></li><li><a href="/tools/sodium/">나트륨 계산기</a></li><li><a href="/report/">진료 준비 리포트</a></li></ul></div>
+<div class="side-box"><b>더 알아보기</b><ul><li><a href="/faq/">고혈압 자주 묻는 질문</a></li><li><a href="/glossary/">고혈압 용어사전</a></li><li><a href="/factcheck/">혈압 속설 팩트체크</a></li><li><a href="/library/">학회·공공기관 자료실</a></li></ul></div>
 </aside>
 </div>
-{related_block(related(a))}
+{SEO.related_html(path)}
 </div>
 </section>
 """
-    return page(a["title"], a["summary"], path, body, jsonld=ld, keywords=a.get("keywords"), og_type="article")
+    return page(a["title"], a["summary"], path, body, jsonld=ld, keywords=a.get("keywords"), og_type="article", published=pub, modified=mod)
 
 
 def info_index():
@@ -322,7 +329,8 @@ def food_page(fp):
     path = f"/food/{fp['slug']}.html"
     body_html = food_body(fp["slug"])
     date = fp.get("date", REVIEW_DATE)
-    ld = [article_ld(fp["title"], fp["summary"], path, fp.get("keywords"), date)]
+    pub, mod = item_dates(fp)
+    ld = [article_ld(fp["title"], fp["summary"], path, fp.get("keywords"), date, fp.get("updated"))]
     if fp.get("faq"):
         ld.append(faq_ld(fp["faq"]))
     others = [x for x in F.FOOD_PAGES if x["slug"] != fp["slug"]][:4]
@@ -334,15 +342,15 @@ def food_page(fp):
 <article class="article {'article--wide' if fp['slug'] in ('sodium-table', 'meal-plan', 'good-foods') else ''}">
 <div class="article-meta"><span>작성 바른혈압 편집팀</span><span>{review_badge()}</span><span>최종 검토 <time datetime="{date}">{date}</time></span></div>
 {evidence(fp["kind"], fp["certainty"], fp["target"], date=date)}
-{body_html}
+{SEO.link_glossary(body_html, path)}
 {faq_block(fp.get("faq"))}
 {MALL.related_box(path, fp["title"] + " " + " ".join(fp.get("keywords") or []))}
 </article>
-<aside class="related no-print"><h2>음식·식단 더 보기</h2><ul>{rel}</ul></aside>
+{SEO.related_html(path)}
 </div>
 </section>
 """
-    return page(fp["title"], fp["summary"], path, body, jsonld=ld, keywords=fp.get("keywords"), og_type="article", extra_js=js)
+    return page(fp["title"], fp["summary"], path, body, jsonld=ld, keywords=fp.get("keywords"), og_type="article", extra_js=js, published=pub, modified=mod)
 
 
 def food_index():
@@ -419,10 +427,13 @@ def recipe_page(r):
 <p class="fine">레시피의 양념 양은 일반적인 예시입니다. 식이 제한을 받고 있다면 의료진·영양사의 지시를 우선하세요.</p>
 </div>
 <aside class="related no-print"><h2>다른 레시피</h2><ul>{others}</ul></aside>
+{SEO.related_html(path, 4, "레시피와 함께 읽으면 좋은 글")}
 </div>
 </section>
 """
-    return page(f"{r['name']} — 저염 레시피", r["desc"] + " 고혈압 식단에 맞춘 저염 레시피.", path, body, jsonld=ld, keywords=["저염 레시피", "고혈압 레시피", r["name"], "저염식"], og_type="article")
+    pub, mod = item_dates(r)
+    return page(RSD.seo_title(r), RSD.seo_desc(r), path, body, jsonld=ld, og_type="article", published=pub, modified=mod,
+                keywords=[r["name"].split(" — ")[0] + " 만드는 법", "저염 레시피", "고혈압 레시피", "저염식"])
 
 
 def recipes_index():
@@ -536,7 +547,9 @@ def tool_sodium():
 <script id="sd-data" type="application/json">{data}</script>
 """
     ld = {"@context": "https://schema.org", "@type": "WebApplication", "name": "나트륨 계산기", "applicationCategory": "HealthApplication", "operatingSystem": "Web", "url": SITE + "/tools/sodium/", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "KRW"}}
-    return page("나트륨 계산기 — 오늘 먹은 음식 나트륨 합계", "외식 메뉴 37가지와 직접 입력으로 하루 나트륨을 계산합니다. WHO 권고 2,000mg 대비 비율, 국물 남김 반영.", "/tools/sodium/", body, jsonld=ld, extra_js='<script src="/assets/js/sodium.js"></script>',
+    body += SC.guide_html("/tools/sodium/")
+    ld = [ld, SC.guide_ld("/tools/sodium/")]
+    return page("나트륨 계산기 — 오늘 먹은 음식 나트륨 합계", "외식 메뉴와 포장 식품을 더해 하루 나트륨을 계산합니다. WHO 권고 2,000mg(소금 5g) 대비 비율, 국물 남김 반영, 하루 권장량과 줄이는 순서 안내.", "/tools/sodium/", body, jsonld=ld, extra_js='<script src="/assets/js/sodium.js"></script>',
                 keywords=["나트륨 계산기", "하루 나트륨", "나트륨 섭취량 계산", "소금 섭취량"])
 
 
@@ -564,7 +577,8 @@ def tool_timer():
 <div class="tool-note">안정 시간 동안 말하거나 휴대폰을 보지 않는 것이 좋습니다. 화면이 꺼지지 않게 하려면 기기 설정을 확인하세요. 측정값은 7일 기록에 아침·저녁이 자동으로 구분되어 저장됩니다.</div>
 </div></section>
 """
-    return page("혈압 측정 타이머 — 5분 안정부터 2회 측정까지", "지침이 권고하는 순서대로 5분 안정, 1~2분 간격 2회 측정을 안내하는 혈압 측정 타이머. 측정값은 바로 7일 기록에 저장.", "/tools/timer/", body, extra_js='<script src="/assets/js/timer.js"></script>',
+    body += SC.guide_html("/tools/timer/")
+    return page("혈압 측정 타이머 — 5분 안정부터 2회 측정까지", "지침이 권고하는 순서대로 5분 안정, 1~2분 간격 2회 측정을 안내하는 혈압 측정 타이머. 측정값은 바로 7일 기록에 저장.", "/tools/timer/", body, jsonld=SC.guide_ld("/tools/timer/"), extra_js='<script src="/assets/js/timer.js"></script>',
                 keywords=["혈압 측정 방법", "혈압 측정 타이머", "혈압 재는 법", "5분 안정"])
 
 
@@ -580,7 +594,7 @@ def tool_meds():
 <div class="tool-note">빠뜨린 날이 많다면 진료 때 솔직하게 알려주세요. 복용 시간을 바꾸거나 복합제로 단순화하는 방법이 있습니다. 약을 빠뜨렸을 때 어떻게 할지는 <a href="/info/medications.html">혈압약 자주 묻는 질문</a>과 약사의 안내를 따르세요.</div>
 </div></section>
 """
-    return page("복약 체크 — 혈압약 복용 기록", "아침·저녁 혈압약 복용 여부를 일주일 단위로 체크하는 도구. 브라우저에만 저장, 진료 준비 리포트에 요약.", "/tools/meds/", body, extra_js='<script src="/assets/js/meds.js"></script>',
+    return page("혈압약 복용 체크 — 약 먹었는지 헷갈릴 때 쓰는 복약 기록", "아침·저녁 혈압약을 먹었는지 일주일 단위로 체크하는 무료 복약 기록 도구. 회원가입 없이 브라우저에만 저장되고, 진료 준비 리포트에 복약 요약이 들어갑니다.", "/tools/meds/", body, extra_js='<script src="/assets/js/meds.js"></script>',
                 keywords=["혈압약 복용 체크", "복약 기록", "약 먹었는지 체크", "혈압약 깜빡"])
 
 
@@ -603,7 +617,7 @@ def tool_reminder():
 <p class="fine">알림 파일은 이 브라우저에서 만들어지며 서버로 보내는 정보가 없습니다.</p>
 </div></section>
 """
-    return page("혈압 측정 알림 만들기 — 휴대폰 캘린더에 아침·저녁 알림", "아침·저녁 혈압 측정 알림을 휴대폰 캘린더에 추가하는 무료 도구. 7일·14일·30일·계속 반복.", "/tools/reminder/", body, extra_js='<script src="/assets/js/reminder.js"></script>',
+    return page("혈압 측정 알림 만들기 — 휴대폰 캘린더에 아침·저녁 알림", "아침·저녁 혈압 측정 시간을 휴대폰 캘린더 알림으로 추가하는 무료 도구. 7일·14일·30일 또는 계속 반복을 고를 수 있어 가정혈압을 빠뜨리지 않고 잴 수 있습니다.", "/tools/reminder/", body, extra_js='<script src="/assets/js/reminder.js"></script>',
                 keywords=["혈압 측정 알림", "혈압 재는 시간 알림", "혈압 기록 알람"])
 
 
@@ -618,7 +632,7 @@ def tool_backup():
 <div class="tool-note">기기 이동 순서: ① 기존 기기에서 백업 파일 저장 → ② 파일을 카카오톡 '나에게 보내기'·이메일 등으로 새 기기에 전달 → ③ 새 기기에서 불러오기. 바른혈압 서버를 거치지 않습니다.</div>
 </div></section>
 """
-    return page("혈압 기록 백업·복원", "브라우저에 저장된 혈압 기록을 파일로 백업하고 다른 기기에서 복원합니다. 서버를 거치지 않습니다.", "/tools/backup/", body, extra_js='<script src="/assets/js/backup.js"></script>', noindex=False)
+    return page("혈압 기록 백업·복원", "브라우저에 저장된 7일 혈압 기록과 복약 체크를 파일 하나로 백업하고, 휴대폰을 바꿨을 때 다른 기기에서 복원합니다. 서버를 거치지 않습니다.", "/tools/backup/", body, extra_js='<script src="/assets/js/backup.js"></script>', noindex=False)
 
 
 def tool_logsheet():
@@ -627,14 +641,15 @@ def tool_logsheet():
 <section class="section section--tight"><div class="wrap">
 <div class="no-print" style="margin-bottom:16px;display:flex;gap:10px;flex-wrap:wrap"><button class="btn btn--primary" onclick="window.bpTrack&amp;&amp;bpTrack('logsheet_print');window.print()">기록지 인쇄</button><a class="btn btn--secondary" href="/measure/">재는 법 확인</a></div>
 <div class="report-sheet logsheet">
-<header><div><h1>가정혈압 기록지</h1><div class="meta">이름 ____________ &nbsp; 혈압계 ____________ &nbsp; 측정 팔 □ 왼팔 □ 오른팔</div></div><img src="/assets/img/logo.png" alt="바른혈압"></header>
+<header><div><p class="sheet-title">가정혈압 기록지</p><div class="meta">이름 ____________ &nbsp; 혈압계 ____________ &nbsp; 측정 팔 □ 왼팔 □ 오른팔</div></div><img src="/assets/img/logo.png" alt="바른혈압"></header>
 <p class="q" style="margin:0 0 8px">아침: 기상 후 1시간 이내, 소변 후, 약·식사 전 · 저녁: 잠들기 전 · 등받이 의자에 앉아 5분 안정 후 1~2분 간격으로 2번</p>
 <table><thead><tr><th style="width:12%">날짜</th><th>아침 1회<br><small>수축기/이완기 · 맥박</small></th><th>아침 2회</th><th>저녁 1회</th><th>저녁 2회</th><th style="width:22%">메모<br><small>약 복용·음주·수면·증상</small></th></tr></thead><tbody>{rows}</tbody></table>
 <div class="foot">이 기록지는 이용자가 가정에서 측정한 값을 적는 양식이며 진단 자료가 아닙니다. 수치의 해석과 치료 판단은 의료진이 합니다. 바른혈압 bareunbp.com</div>
 </div>
 </div></section>
 """
-    return page("인쇄용 혈압 기록지 — 2주 가정혈압 기록표", "아침·저녁 2회씩 적는 2주 가정혈압 기록지. 무료로 인쇄해 혈압계 옆이나 냉장고에 붙여 두세요.", "/tools/log-sheet/", body,
+    body += SC.guide_html("/tools/log-sheet/")
+    return page("인쇄용 혈압 기록지 — 2주 가정혈압 기록표", "아침·저녁 2회씩 적는 2주 가정혈압 기록지 양식. 무료로 인쇄해 혈압계 옆에 두고, 쓰는 법과 며칠 적어야 하는지도 확인하세요.", "/tools/log-sheet/", body, jsonld=SC.guide_ld("/tools/log-sheet/"),
                 keywords=["혈압 기록지", "혈압 기록표", "혈압 기록지 양식", "가정혈압 기록지 인쇄", "혈압 수첩"])
 
 

@@ -1,3 +1,4 @@
+# AI 검색 안내: https://bareunbp.com/llms.txt
 User-agent: *
 Allow: /
 Disallow: /api/
@@ -17,3 +18,4 @@ Disallow: /account/
 Disallow: /my/
 
 Sitemap: https://bareunbp.com/sitemap.xml
+Sitemap: https://bareunbp.com/rss.xml

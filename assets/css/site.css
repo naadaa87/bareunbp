@@ -858,3 +858,14 @@ input[type=file] { max-width: 100%; }
 .steps li > img { grid-column: 2; width: 100%; max-width: 420px; border-radius: 10px; }
 .recipe-photo { margin: 0 0 24px; }
 .recipe-photo img { width: 100%; max-height: 460px; object-fit: cover; border-radius: 16px; display: block; }
+
+/* 관련 글 — 글 종류 표시 */
+.related .rel-kind { display: inline-block; font-style: normal; font-size: 0.75rem; font-weight: 600; color: var(--blue-deep); background: var(--blue-soft); border-radius: 999px; padding: 2px 9px; margin-bottom: 6px; }
+.related ul { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.report-sheet .sheet-title { font-size: 1.5rem; font-weight: 700; color: var(--navy); margin: 0; }
+.popular-q { padding-top: 8px; }
+.popular-q .chips { margin-bottom: 0; }
+.popular-q .chip:hover { border-color: var(--blue); color: var(--blue-deep); text-decoration: none; }
+.tool-guide { border-top: 1px solid var(--line); }
+.article a.gl-link { color: inherit; text-decoration: underline dotted var(--blue); text-underline-offset: 3px; }
+.article a.gl-link:hover { color: var(--blue-deep); }

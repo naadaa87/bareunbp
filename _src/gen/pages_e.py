@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """영상으로 배우기 · 자료실 · 숫자로 보는 고혈압 · 고혈압 소식 (2026-11)"""
-from base import page, page_head, table, sources, cta_band, ICONS, SITE, NEW_DATE
+from base import page, page_head, table, sources, cta_band, ICONS, SITE, NEW_DATE, BRAND
 from articles3a import FACT2026, KNHANES2025, KDCA6
 
 # ------------------------------------------------------------------ 영상
@@ -284,7 +284,9 @@ def stats_page():
 {cta_band("내 숫자부터 확인해 보세요", "통계 속 한 사람이 아니라 내 혈압을 아는 것이 먼저입니다. 7일만 재 보세요.", "/check7/", "7일 혈압 기록 시작")}
 """
     ld = {"@context": "https://schema.org", "@type": ["Article", "MedicalWebPage"], "headline": "숫자로 보는 고혈압 — 유병률, 인지율, 치료율, 조절률", "dateModified": NEW_DATE, "datePublished": NEW_DATE,
-          "author": {"@type": "Organization", "name": "바른혈압 편집팀"}, "mainEntityOfPage": SITE + "/stats/"}
+          "author": {"@type": "Organization", "name": "바른혈압 편집팀", "url": SITE + "/about/"}, "mainEntityOfPage": SITE + "/stats/",
+          "image": [SITE + "/assets/og/stats.png"], "inLanguage": "ko",
+          "publisher": {"@type": "Organization", "name": BRAND, "url": SITE, "logo": {"@type": "ImageObject", "url": SITE + "/assets/img/logo@2x.png"}}}
     return page("숫자로 보는 고혈압 — 유병률·인지율·치료율·조절률 최신 통계", "고혈압 환자 1,361만 명, 조절률 56.1%, 하루 나트륨 3,043mg. 대한고혈압학회 팩트시트 2026과 2025년 국민건강영양조사로 본 우리나라 고혈압 통계.",
                 "/stats/", body, jsonld=ld, og_type="article", keywords=["고혈압 통계", "고혈압 환자 수", "고혈압 유병률", "고혈압 조절률", "고혈압 팩트시트 2026", "나트륨 섭취량 통계"])
 

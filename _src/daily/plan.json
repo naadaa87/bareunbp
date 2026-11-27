@@ -1,5 +1,5 @@
 {
- "about": "바른혈압 매일 발행 계획표. 위에서부터 차례로 쓴다. 요일별로 유형을 돌린다(월·목·금·일 건강정보, 화 음식·식단, 수 팩트체크, 토 레시피). after/before는 계절 주제의 발행 가능 기간. 이미 쓴 주제는 _src/daily/posts에 같은 slug 파일이 있으면 끝난 것으로 본다. 더 쓸 수 없는 주제는 status를 'skip'으로 바꾸고 note에 이유를 적는다.",
+ "about": "바른혈압 매일 발행 계획표. 위에서부터 차례로 쓴다. 요일별로 유형을 돌린다(월·목·금·일 건강정보, 화 음식·식단, 수 팩트체크, 토 레시피). after/before는 계절 주제의 발행 가능 기간. 이미 쓴 주제는 _src/daily/posts에 같은 slug 파일이 있으면 끝난 것으로 본다. 더 쓸 수 없는 주제는 status를 'skip'으로 바꾸고 note에 이유를 적는다. 2026-11-27: 검색 수요가 큰 주제(고혈압 원인, 혈당 정상수치, 당뇨 초기증상, 혈압약과 음식 등)를 유형별 앞쪽으로 옮겼다. 키워드 지도는 KEYWORDS.md 참고.",
  "rotation": {
   "월": "article",
   "화": "food",
@@ -12,42 +12,42 @@
  "topics": [
   {
    "type": "food",
-   "slug": "winter-soup-sodium",
-   "title": "찌개·전골 나트륨 — 겨울 국물 요리 덜 짜게 먹는 법",
+   "slug": "tea-bp",
+   "title": "혈압에 좋은 차 — 녹차·히비스커스·보리차, 근거는 어디까지",
    "keywords": [
-    "찌개 나트륨",
-    "국물 나트륨",
-    "저염 찌개",
-    "전골 나트륨",
-    "겨울 국물 요리"
+    "혈압에 좋은 차",
+    "히비스커스 혈압",
+    "녹차 혈압",
+    "보리차 혈압",
+    "혈압 차"
    ],
-   "persona": "집밥·외식에서 국물을 자주 먹는 40~60대",
-   "angle": "찌개·전골·탕 1인분 나트륨(식약처 분석)과 국물 비중, 국물 남기기·건더기 위주·간 마지막에 하기 등 실천법. 김장철 김치와 함께 먹는 상황.",
+   "persona": "차로 혈압을 관리하고 싶은 사람",
+   "angle": "연구 근거 수준을 정직하게(소규모 연구, 효과 크기 작음), 카페인·약 상호작용, 차가 약을 대신하지 못함.",
    "links": [
-    "/food/sodium-table.html",
-    "/info/sodium.html",
-    "/info/seasons.html",
-    "/food/recipes/doenjang-soup.html"
-   ],
-   "before": "2027-02-28"
+    "/food/drinks.html",
+    "/info/caffeine.html",
+    "/factcheck/juice-replaces-medication.html",
+    "/food/supplements.html"
+   ]
   },
   {
    "type": "food",
-   "slug": "ramen-sodium",
-   "title": "라면 나트륨 — 스프 반, 국물 남기기로 얼마나 줄어들까",
+   "slug": "meds-food-interactions",
+   "title": "혈압약과 함께 조심할 음식 — 자몽·감초·칼륨·술",
    "keywords": [
-    "라면 나트륨",
-    "라면 혈압",
-    "라면 스프 나트륨",
-    "컵라면 나트륨"
+    "혈압약 먹으면 안되는 음식",
+    "혈압약 자몽",
+    "혈압약 감초",
+    "혈압약 바나나",
+    "혈압약 술"
    ],
-   "persona": "혼밥·야식이 잦은 20~40대 직장인",
-   "angle": "봉지·컵라면 나트륨 범위(영양성분표 기준), 스프 양·국물 섭취 비율에 따른 계산, 곁들임 채소·우유 등 현실 팁. 특정 제품 순위 매기지 않기.",
+   "persona": "혈압약을 처음 먹기 시작해 피해야 할 음식을 검색하는 50~70대",
+   "angle": "약 계열별로 실제로 주의가 필요한 조합만: 일부 칼슘차단제와 자몽, 감초(글리시리진)와 혈압 상승, ARB·ACE억제제·칼륨보존이뇨제와 칼륨 많은 음식·칼륨 소금(콩팥 질환 시), 술. '무조건 금지'가 아니라 약 이름을 약사에게 확인하는 법. 의약품안전나라·식약처 근거.",
    "links": [
-    "/food/nutrition-label.html",
-    "/food/hidden-sodium.html",
-    "/tools/sodium/",
-    "/info/workers.html"
+    "/factcheck/grapefruit.html",
+    "/info/drugs-raise-bp.html",
+    "/food/potassium.html",
+    "/info/medications.html"
    ]
   },
   {
@@ -90,22 +90,42 @@
   },
   {
    "type": "food",
-   "slug": "tea-bp",
-   "title": "혈압에 좋은 차 — 녹차·히비스커스·보리차, 근거는 어디까지",
+   "slug": "winter-soup-sodium",
+   "title": "찌개·전골 나트륨 — 겨울 국물 요리 덜 짜게 먹는 법",
    "keywords": [
-    "혈압에 좋은 차",
-    "히비스커스 혈압",
-    "녹차 혈압",
-    "보리차 혈압",
-    "혈압 차"
+    "찌개 나트륨",
+    "국물 나트륨",
+    "저염 찌개",
+    "전골 나트륨",
+    "겨울 국물 요리"
    ],
-   "persona": "차로 혈압을 관리하고 싶은 사람",
-   "angle": "연구 근거 수준을 정직하게(소규모 연구, 효과 크기 작음), 카페인·약 상호작용, 차가 약을 대신하지 못함.",
+   "persona": "집밥·외식에서 국물을 자주 먹는 40~60대",
+   "angle": "찌개·전골·탕 1인분 나트륨(식약처 분석)과 국물 비중, 국물 남기기·건더기 위주·간 마지막에 하기 등 실천법. 김장철 김치와 함께 먹는 상황.",
    "links": [
-    "/food/drinks.html",
-    "/info/caffeine.html",
-    "/factcheck/juice-replaces-medication.html",
-    "/food/supplements.html"
+    "/food/sodium-table.html",
+    "/info/sodium.html",
+    "/info/seasons.html",
+    "/food/recipes/doenjang-soup.html"
+   ],
+   "before": "2027-02-28"
+  },
+  {
+   "type": "food",
+   "slug": "ramen-sodium",
+   "title": "라면 나트륨 — 스프 반, 국물 남기기로 얼마나 줄어들까",
+   "keywords": [
+    "라면 나트륨",
+    "라면 혈압",
+    "라면 스프 나트륨",
+    "컵라면 나트륨"
+   ],
+   "persona": "혼밥·야식이 잦은 20~40대 직장인",
+   "angle": "봉지·컵라면 나트륨 범위(영양성분표 기준), 스프 양·국물 섭취 비율에 따른 계산, 곁들임 채소·우유 등 현실 팁. 특정 제품 순위 매기지 않기.",
+   "links": [
+    "/food/nutrition-label.html",
+    "/food/hidden-sodium.html",
+    "/tools/sodium/",
+    "/info/workers.html"
    ]
   },
   {
@@ -273,6 +293,24 @@
     "/food/recipes/multigrain-rice.html",
     "/info/diabetes-lipids.html",
     "/food/dash.html"
+   ]
+  },
+  {
+   "type": "factcheck",
+   "slug": "acupressure-lowers-bp",
+   "title": "혈압 낮추는 지압점을 누르면 혈압약 없이 혈압이 내려간다",
+   "keywords": [
+    "혈압 낮추는 지압",
+    "혈압 지압점",
+    "혈압 내리는 방법 즉시",
+    "혈압 빨리 내리는 법"
+   ],
+   "persona": "혈압이 높게 나와 '지금 당장 내리는 법'을 검색하는 사람",
+   "angle": "지압·마사지의 근거 수준(체계적 문헌고찰 등 확인되는 범위), 일시적 이완과 지속적 혈압 조절의 차이, 혈압이 높게 나왔을 때 실제로 할 일(안정 후 재측정, 180/120 이상·증상 시 119). 효과를 과장하지 않고 '근거 불충분' 범위에서 판정.",
+   "links": [
+    "/info/sudden-bp-spike.html",
+    "/info/hypertensive-crisis.html",
+    "/measure/"
    ]
   },
   {
@@ -718,6 +756,199 @@
   },
   {
    "type": "article",
+   "slug": "hypertension-causes",
+   "title": "고혈압 원인 — 본태성과 이차성, 생활습관이 혈압을 올리는 방식",
+   "keywords": [
+    "고혈압 원인",
+    "고혈압 생기는 이유",
+    "혈압 높아지는 원인",
+    "본태성 고혈압",
+    "젊은 고혈압 원인"
+   ],
+   "persona": "검진에서 처음 혈압이 높다는 말을 듣고 '왜 생겼을까'를 검색하는 30~50대",
+   "angle": "대부분(본태성)은 한 가지 원인이 아니라 나이·가족력·나트륨·체중·음주·운동 부족·수면이 겹친다는 점, 원인이 따로 있는 이차성 고혈압을 의심할 단서, 바꿀 수 있는 요인과 바꿀 수 없는 요인을 표로 정리. 대한고혈압학회 지침 근거.",
+   "links": [
+    "/info/secondary-hypertension.html",
+    "/info/family-history.html",
+    "/info/lifestyle-effects.html",
+    "/info/sodium.html"
+   ]
+  },
+  {
+   "type": "article",
+   "slug": "blood-sugar-normal",
+   "title": "혈당 정상수치 — 공복혈당·식후혈당·당화혈색소 기준표",
+   "keywords": [
+    "혈당 정상수치",
+    "공복혈당 정상수치",
+    "식후혈당 정상수치",
+    "당화혈색소 정상수치",
+    "당뇨 수치"
+   ],
+   "persona": "검진 결과지에서 혈압과 함께 혈당 수치를 보고 정상인지 확인하려는 40~60대",
+   "angle": "대한당뇨병학회 진료지침의 정상·당뇨병 전단계·당뇨병 기준(공복혈당, 경구당부하 2시간, 당화혈색소)을 표 하나로. 한 번 높게 나왔을 때 재검사, 고혈압과 함께 있을 때 목표 혈압이 달라지는 점(130/80)과 연결. 수치는 학회 원문으로 확인.",
+   "links": [
+    "/info/diabetes-lipids.html",
+    "/info/targets.html",
+    "/info/reading-numbers.html",
+    "/info/checkup-followup.html"
+   ]
+  },
+  {
+   "type": "article",
+   "slug": "fasting-glucose",
+   "cat": "risk",
+   "title": "공복혈당 100~125 — 당뇨 전단계와 혈압을 함께 관리하기",
+   "keywords": [
+    "공복혈당 정상수치",
+    "당뇨 전단계",
+    "공복혈당 110",
+    "공복혈당 120"
+   ],
+   "persona": "검진에서 공복혈당 경고를 받은 40~50대",
+   "angle": "진단 기준(대한당뇨병학회), 전단계 의미, 고혈압과 함께 있을 때 심혈관 위험, 체중·운동, 재검 시점.",
+   "links": [
+    "/info/diabetes-lipids.html",
+    "/info/weight.html",
+    "/info/checkup-followup.html",
+    "/info/exercise.html"
+   ]
+  },
+  {
+   "type": "article",
+   "slug": "diabetes-early-signs",
+   "title": "당뇨 초기증상 — 증상보다 검사가 먼저인 이유와 확인할 신호",
+   "keywords": [
+    "당뇨 초기증상",
+    "당뇨 증상",
+    "당뇨 전단계 증상",
+    "갈증 소변 자주",
+    "고혈압 당뇨"
+   ],
+   "persona": "갈증·잦은 소변·피로를 느끼고 당뇨를 걱정하는 고혈압 환자와 가족",
+   "angle": "고혈압처럼 당뇨도 초기에 증상이 없는 경우가 많다는 점, 다음·다뇨·다식·체중 감소 같은 전형적 증상, 검사(공복혈당·당화혈색소)로 확인하는 법, 고혈압이 있으면 정기적으로 혈당을 함께 보는 이유. 대한당뇨병학회·질병관리청 근거. 응급 신호(의식 저하 등)는 119.",
+   "links": [
+    "/info/diabetes-lipids.html",
+    "/info/symptoms.html",
+    "/info/complications.html"
+   ]
+  },
+  {
+   "type": "article",
+   "slug": "hba1c",
+   "cat": "risk",
+   "title": "당화혈색소 — 5.7과 6.5의 의미, 혈압과 함께 볼 것",
+   "keywords": [
+    "당화혈색소 정상수치",
+    "당화혈색소 6.5",
+    "당화혈색소 5.7",
+    "HbA1c"
+   ],
+   "persona": "혈당 수치를 처음 들은 사람",
+   "angle": "정의(2~3개월 평균), 기준, 공복혈당과 차이, 혈압·지질 동시 관리.",
+   "links": [
+    "/info/fasting-glucose.html",
+    "/info/diabetes-lipids.html",
+    "/info/kidney.html"
+   ]
+  },
+  {
+   "type": "article",
+   "slug": "ldl-cholesterol",
+   "cat": "risk",
+   "title": "LDL 콜레스테롤 수치 — 고혈압이 있으면 목표가 달라진다",
+   "keywords": [
+    "LDL 콜레스테롤 정상수치",
+    "나쁜 콜레스테롤",
+    "고지혈증 기준",
+    "LDL 130"
+   ],
+   "persona": "검진 결과지의 콜레스테롤이 걱정인 사람",
+   "angle": "한국지질동맥경화학회 기준, 위험군별 목표, 고혈압 동반 시, 식사·운동·약은 의료진.",
+   "links": [
+    "/info/diabetes-lipids.html",
+    "/info/complications.html",
+    "/food/dash.html"
+   ]
+  },
+  {
+   "type": "article",
+   "slug": "bp-130-85",
+   "cat": "diagnosis",
+   "title": "혈압 130/85 — 주의혈압·고혈압 전단계일 때 할 일",
+   "keywords": [
+    "고혈압 전단계",
+    "주의혈압",
+    "혈압 130",
+    "혈압 130 85"
+   ],
+   "persona": "고혈압은 아니라는데 불안한 20~40대",
+   "angle": "학회 분류(주의혈압·고혈압 전단계), 진행 위험, 생활요법 효과, 측정 주기. 미국 130/80 기준과 차이.",
+   "links": [
+    "/info/reading-numbers.html",
+    "/info/lifestyle-effects.html",
+    "/info/young-adults.html",
+    "/info/targets.html"
+   ]
+  },
+  {
+   "type": "article",
+   "slug": "measure-timing",
+   "cat": "measure",
+   "title": "식후·운동 후·샤워 후 혈압 — 언제 재면 안 될까",
+   "keywords": [
+    "식후 혈압",
+    "운동 후 혈압",
+    "샤워 후 혈압",
+    "혈압 재는 시간"
+   ],
+   "persona": "아무 때나 재는 사람",
+   "angle": "식후 저혈압, 운동 후 하강, 목욕 후, 카페인·흡연 30분, 아침·저녁 표준 시점.",
+   "links": [
+    "/info/home-measurement.html",
+    "/info/morning-bp.html",
+    "/tools/timer/"
+   ]
+  },
+  {
+   "type": "article",
+   "slug": "fast-pulse",
+   "title": "맥박이 빠를 때 — 안정 시 100회가 넘으면 확인할 것",
+   "keywords": [
+    "맥박 빠를 때",
+    "맥박 100 이상",
+    "빈맥",
+    "심장 두근거림 혈압",
+    "맥박 정상수치"
+   ],
+   "persona": "혈압계에 맥박이 100 넘게 찍혀 걱정하는 사람",
+   "angle": "안정 시 맥박 정상 범위, 일시적으로 빨라지는 원인(카페인·긴장·운동 직후·발열·탈수), 반복되면 확인할 것(갑상선, 빈혈, 부정맥·심방세동), 혈압계 맥박 표시의 한계, 응급 신호(흉통·실신·숨참) 119. 기존 맥박·맥압 글과 연결.",
+   "links": [
+    "/info/pulse-pressure-heart-rate.html",
+    "/info/caffeine.html",
+    "/info/heart.html"
+   ]
+  },
+  {
+   "type": "article",
+   "slug": "metabolic-syndrome",
+   "cat": "risk",
+   "title": "대사증후군 기준 — 허리둘레·혈압·혈당·중성지방·HDL",
+   "keywords": [
+    "대사증후군 기준",
+    "대사증후군 진단",
+    "허리둘레 기준"
+   ],
+   "persona": "검진에서 대사증후군 위험을 들은 사람",
+   "angle": "5가지 기준(한국 허리둘레), 3개 이상, 각 항목 개선법.",
+   "links": [
+    "/info/weight.html",
+    "/info/diabetes-lipids.html",
+    "/info/ldl-cholesterol.html"
+   ]
+  },
+  {
+   "type": "article",
    "slug": "bp-140-90",
    "cat": "diagnosis",
    "title": "혈압 140/90 — 고혈압일까, 다시 재야 할까",
@@ -860,46 +1091,6 @@
   },
   {
    "type": "article",
-   "slug": "fasting-glucose",
-   "cat": "risk",
-   "title": "공복혈당 100~125 — 당뇨 전단계와 혈압을 함께 관리하기",
-   "keywords": [
-    "공복혈당 정상수치",
-    "당뇨 전단계",
-    "공복혈당 110",
-    "공복혈당 120"
-   ],
-   "persona": "검진에서 공복혈당 경고를 받은 40~50대",
-   "angle": "진단 기준(대한당뇨병학회), 전단계 의미, 고혈압과 함께 있을 때 심혈관 위험, 체중·운동, 재검 시점.",
-   "links": [
-    "/info/diabetes-lipids.html",
-    "/info/weight.html",
-    "/info/checkup-followup.html",
-    "/info/exercise.html"
-   ]
-  },
-  {
-   "type": "article",
-   "slug": "bp-130-85",
-   "cat": "diagnosis",
-   "title": "혈압 130/85 — 주의혈압·고혈압 전단계일 때 할 일",
-   "keywords": [
-    "고혈압 전단계",
-    "주의혈압",
-    "혈압 130",
-    "혈압 130 85"
-   ],
-   "persona": "고혈압은 아니라는데 불안한 20~40대",
-   "angle": "학회 분류(주의혈압·고혈압 전단계), 진행 위험, 생활요법 효과, 측정 주기. 미국 130/80 기준과 차이.",
-   "links": [
-    "/info/reading-numbers.html",
-    "/info/lifestyle-effects.html",
-    "/info/young-adults.html",
-    "/info/targets.html"
-   ]
-  },
-  {
-   "type": "article",
    "slug": "meds-and-alcohol",
    "cat": "meds",
    "title": "혈압약 먹는 날 술 마셔도 될까",
@@ -937,25 +1128,6 @@
   },
   {
    "type": "article",
-   "slug": "ldl-cholesterol",
-   "cat": "risk",
-   "title": "LDL 콜레스테롤 수치 — 고혈압이 있으면 목표가 달라진다",
-   "keywords": [
-    "LDL 콜레스테롤 정상수치",
-    "나쁜 콜레스테롤",
-    "고지혈증 기준",
-    "LDL 130"
-   ],
-   "persona": "검진 결과지의 콜레스테롤이 걱정인 사람",
-   "angle": "한국지질동맥경화학회 기준, 위험군별 목표, 고혈압 동반 시, 식사·운동·약은 의료진.",
-   "links": [
-    "/info/diabetes-lipids.html",
-    "/info/complications.html",
-    "/food/dash.html"
-   ]
-  },
-  {
-   "type": "article",
    "slug": "nosebleed-bp",
    "cat": "symptom",
    "title": "코피와 고혈압 — 코피가 나면 혈압부터 재야 할까",
@@ -970,25 +1142,6 @@
     "/info/symptoms.html",
     "/info/hypertensive-crisis.html",
     "/info/drugs-raise-bp.html"
-   ]
-  },
-  {
-   "type": "article",
-   "slug": "measure-timing",
-   "cat": "measure",
-   "title": "식후·운동 후·샤워 후 혈압 — 언제 재면 안 될까",
-   "keywords": [
-    "식후 혈압",
-    "운동 후 혈압",
-    "샤워 후 혈압",
-    "혈압 재는 시간"
-   ],
-   "persona": "아무 때나 재는 사람",
-   "angle": "식후 저혈압, 운동 후 하강, 목욕 후, 카페인·흡연 30분, 아침·저녁 표준 시점.",
-   "links": [
-    "/info/home-measurement.html",
-    "/info/morning-bp.html",
-    "/tools/timer/"
    ]
   },
   {
@@ -1052,25 +1205,6 @@
   },
   {
    "type": "article",
-   "slug": "hba1c",
-   "cat": "risk",
-   "title": "당화혈색소 — 5.7과 6.5의 의미, 혈압과 함께 볼 것",
-   "keywords": [
-    "당화혈색소 정상수치",
-    "당화혈색소 6.5",
-    "당화혈색소 5.7",
-    "HbA1c"
-   ],
-   "persona": "혈당 수치를 처음 들은 사람",
-   "angle": "정의(2~3개월 평균), 기준, 공복혈당과 차이, 혈압·지질 동시 관리.",
-   "links": [
-    "/info/fasting-glucose.html",
-    "/info/diabetes-lipids.html",
-    "/info/kidney.html"
-   ]
-  },
-  {
-   "type": "article",
    "slug": "tinnitus-bp",
    "cat": "symptom",
    "title": "귀에서 맥박 소리가 날 때 — 이명과 혈압",
@@ -1085,24 +1219,6 @@
     "/info/symptoms.html",
     "/info/heart.html",
     "/info/secondary-hypertension.html"
-   ]
-  },
-  {
-   "type": "article",
-   "slug": "metabolic-syndrome",
-   "cat": "risk",
-   "title": "대사증후군 기준 — 허리둘레·혈압·혈당·중성지방·HDL",
-   "keywords": [
-    "대사증후군 기준",
-    "대사증후군 진단",
-    "허리둘레 기준"
-   ],
-   "persona": "검진에서 대사증후군 위험을 들은 사람",
-   "angle": "5가지 기준(한국 허리둘레), 3개 이상, 각 항목 개선법.",
-   "links": [
-    "/info/weight.html",
-    "/info/diabetes-lipids.html",
-    "/info/ldl-cholesterol.html"
    ]
   },
   {

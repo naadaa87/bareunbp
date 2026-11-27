@@ -92,6 +92,24 @@ def step_text(r):
     return " ".join(d["name"] + " " + d["text"] for d in steps(r))
 
 
+def seo_title(r):
+    """검색 제목: '○○ 만드는 법 — 저염 레시피'. 이름에 이미 '법'이나 부제가 있으면 그대로 쓴다."""
+    if r.get("seo_title"):
+        return r["seo_title"]
+    n = r["name"]
+    if " — " in n:
+        return n
+    if "법" in n:
+        return f"{n} — 저염 레시피"
+    return f"{n} 만드는 법 — 저염 레시피"
+
+
+def seo_desc(r):
+    d = r["desc"].rstrip()
+    d = d if d.endswith((".", "다")) else d + "."
+    return f"{d} {r['serves']}인분, 조리 {r['time']}. 재료 {len(r['ingredients'])}가지와 단계별 만드는 법, 덜 짜게 먹는 요령을 정리했습니다."
+
+
 def page_url(r):
     return SITE + pretty(f"/food/recipes/{r['slug']}.html")
 

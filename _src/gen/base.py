@@ -92,8 +92,27 @@ def _versioned(m):
 _HREF_HTML = re.compile(r'href="(/[^"#?]*?\.html)((?:[#?][^"]*)?)"')
 
 
-def head(title, desc, path, og_image="/assets/img/og.jpg", jsonld=None, noindex=False, keywords=None, og_type="website", modified=None):
+def item_dates(it):
+    """(처음 발행일, 마지막 수정일). 'date'는 발행·검토일, 'updated'는 이후 내용을 고친 날."""
+    date = it.get("date", REVIEW_DATE)
+    pub = FIRST_PUBLISHED if date == REVIEW_DATE else date
+    return pub, max(it.get("updated") or date, pub)
+
+
+def og_image_for(path, title, noindex=False):
+    """페이지별 공유 이미지(1200×630). 검색에서 빠지는 페이지는 공용 이미지."""
+    import og
+    if noindex:
+        return og.ensure_default(OUT)
+    if title == BRAND:
+        return og.ensure(OUT, path, "고혈압·혈압 관리 정보와 7일 기록 — 진료지침과 공공기관 자료로 확인한 혈압 정보", "바른혈압")
+    return og.ensure(OUT, path, title)
+
+
+def head(title, desc, path, og_image=None, jsonld=None, noindex=False, keywords=None, og_type="website", modified=None, published=None):
     full = f"{title} | {BRAND}" if title != BRAND else f"{BRAND} — 고혈압·혈압 관리 정보와 7일 기록"
+    og_image = og_image or og_image_for(path, re.sub(r"<[^>]+>", "", title), noindex)
+    og_alt = re.sub(r"<[^>]+>", "", title) if title != BRAND else f"{BRAND} — 고혈압·혈압 관리 정보"
     ld = ""
     if jsonld:
         ld = "\n".join(f'<script type="application/ld+json">{json.dumps(j, ensure_ascii=False)}</script>' for j in (jsonld if isinstance(jsonld, list) else [jsonld]))
@@ -105,7 +124,13 @@ def head(title, desc, path, og_image="/assets/img/og.jpg", jsonld=None, noindex=
         verify += f'<meta name="google-site-verification" content="{esc(GOOGLE_VERIFY)}">\n'
     art = ""
     if og_type == "article":
-        art = f'<meta property="article:published_time" content="{FIRST_PUBLISHED}T09:00:00+09:00">\n<meta property="article:modified_time" content="{modified or REVIEW_DATE}T09:00:00+09:00">\n<meta property="article:section" content="건강">\n'
+        pub = published or FIRST_PUBLISHED
+        mod = max(modified or REVIEW_DATE, pub)
+        sec = {"/info/": "건강정보", "/food/": "음식·식단", "/factcheck/": "팩트체크"}.get("/" + path.strip("/").split("/")[0] + "/", "건강")
+        art = (f'<meta property="article:published_time" content="{pub}T09:00:00+09:00">\n'
+               f'<meta property="article:modified_time" content="{mod}T09:00:00+09:00">\n'
+               f'<meta property="article:section" content="{sec}">\n'
+               + "".join(f'<meta property="article:tag" content="{esc(k)}">\n' for k in (keywords or [])[:6]))
     robots = '<meta name="robots" content="noindex, follow">' if noindex else '<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">'
     return f"""<!DOCTYPE html>
 <html lang="ko">
@@ -126,6 +151,7 @@ def head(title, desc, path, og_image="/assets/img/og.jpg", jsonld=None, noindex=
 <meta property="og:image" content="{SITE}{og_image}">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="{esc(og_alt)}">
 <meta property="og:url" content="{SITE}{pretty(path)}">
 {art}<meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="{esc(full)}">
@@ -192,8 +218,8 @@ def footer(extra_js=""):
 </html>"""
 
 
-def page(title, desc, path, body, og_image="/assets/img/og.jpg", jsonld=None, extra_js="", noindex=False, keywords=None, og_type="website"):
-    return head(title, desc, path, og_image, jsonld, noindex, keywords, og_type) + "\n<body>\n" + header() + "\n<main id=\"main\">\n" + body + "\n</main>\n" + footer(extra_js)
+def page(title, desc, path, body, og_image=None, jsonld=None, extra_js="", noindex=False, keywords=None, og_type="website", published=None, modified=None):
+    return head(title, desc, path, og_image, jsonld, noindex, keywords, og_type, modified, published) + "\n<body>\n" + header() + "\n<main id=\"main\">\n" + body + "\n</main>\n" + footer(extra_js)
 
 
 def write(path, content):
