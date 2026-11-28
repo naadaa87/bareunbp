@@ -142,6 +142,7 @@
 - [잡곡밥 짓는 법 — 현미·귀리·보리](https://bareunbp.com/food/recipes/multigrain-rice): 흰쌀과 섞어 시작하는 잡곡밥입니다. 식이섬유와 마그네슘을 늘립니다.
 - [저염 된장찌개](https://bareunbp.com/food/recipes/low-salt-doenjang-jjigae): 된장은 평소의 절반만 넣고, 멸치·다시마·표고 국물과 두부·애호박을 넉넉히 넣어 건더기로 먹는 된장찌개입니다.
 - [저염 두부 채소조림](https://bareunbp.com/food/recipes/tofu-stew-light): 간장을 줄이고 양파·당근의 단맛으로 맛을 낸 두부조림입니다.
+- [저염 맑은 콩나물국](https://bareunbp.com/food/recipes/kongnamul-guk): 새우젓과 소금 대신 다시마·멸치 육수와 마늘로 맛을 내고, 국간장은 1작은술만 넣어 끓이는 맑은 콩나물국입니다.
 - [저염 소고기 미역국](https://bareunbp.com/food/recipes/seaweed-soup): 국간장을 줄이고 참기름에 볶은 향과 마늘로 맛을 낸 미역국입니다.
 - [채소 달걀찜](https://bareunbp.com/food/recipes/egg-steamed): 새우젓 대신 다시마 국물로 간을 한 부드러운 달걀찜입니다.
 - [채소 듬뿍 저염 된장국](https://bareunbp.com/food/recipes/doenjang-soup): 된장 양을 줄이고 멸치·다시마 국물과 채소로 맛을 채운 된장국입니다.

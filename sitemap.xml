@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://bareunbp.com/</loc><lastmod>2026-11-27</lastmod><changefreq>weekly</changefreq><priority>1.0</priority></url>
+  <url><loc>https://bareunbp.com/</loc><lastmod>2026-11-28</lastmod><changefreq>weekly</changefreq><priority>1.0</priority></url>
   <url><loc>https://bareunbp.com/measure/</loc><lastmod>2026-11-14</lastmod><changefreq>weekly</changefreq><priority>0.9</priority></url>
   <url><loc>https://bareunbp.com/check7/</loc><lastmod>2026-11-27</lastmod><changefreq>weekly</changefreq><priority>0.9</priority></url>
   <url><loc>https://bareunbp.com/report/</loc><lastmod>2026-11-14</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
@@ -14,8 +14,8 @@
   <url><loc>https://bareunbp.com/community/challenges/</loc><lastmod>2026-11-14</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
   <url><loc>https://bareunbp.com/partners/</loc><lastmod>2026-11-14</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
   <url><loc>https://bareunbp.com/about/</loc><lastmod>2026-11-14</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
-  <url><loc>https://bareunbp.com/food/</loc><lastmod>2026-11-24</lastmod><changefreq>weekly</changefreq><priority>0.9</priority></url>
-  <url><loc>https://bareunbp.com/food/recipes/</loc><lastmod>2026-11-21</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://bareunbp.com/food/</loc><lastmod>2026-11-28</lastmod><changefreq>weekly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://bareunbp.com/food/recipes/</loc><lastmod>2026-11-28</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://bareunbp.com/tools/</loc><lastmod>2026-11-27</lastmod><changefreq>weekly</changefreq><priority>0.9</priority></url>
   <url><loc>https://bareunbp.com/tools/sodium/</loc><lastmod>2026-11-27</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://bareunbp.com/tools/timer/</loc><lastmod>2026-11-27</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
@@ -131,6 +131,7 @@
   <url><loc>https://bareunbp.com/food/vegetables-fruits</loc><lastmod>2026-11-14</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://bareunbp.com/food/mediterranean</loc><lastmod>2026-11-14</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://bareunbp.com/food/drinks</loc><lastmod>2026-11-14</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://bareunbp.com/food/recipes/kongnamul-guk</loc><lastmod>2026-11-28</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://bareunbp.com/food/recipes/low-salt-doenjang-jjigae</loc><lastmod>2026-11-21</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://bareunbp.com/food/recipes/doenjang-soup</loc><lastmod>2026-11-07</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://bareunbp.com/food/recipes/namul</loc><lastmod>2026-11-07</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
